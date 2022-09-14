@@ -32,6 +32,11 @@ type ibftStorage struct {
 	logger *zap.Logger
 }
 
+func (i *ibftStorage) CleanAllChangeRound() error {
+	//TODO implement me
+	panic("implement me")
+}
+
 // NewQBFTStore create new ibft storage
 func NewQBFTStore(db basedb.IDb, logger *zap.Logger, instanceType string) QBFTStore {
 	ibft := &ibftStorage{
