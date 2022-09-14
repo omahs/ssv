@@ -166,6 +166,7 @@ func setupIbftController(role spectypes.BeaconRole, logger *zap.Logger, opt *Opt
 	identifier := spectypes.NewMsgID(opt.Share.PublicKey.Serialize(), role)
 
 	if opt.CleanChangeRound {
+		logger.Debug("clean change round by flag")
 		err := opt.IbftStorage.CleanLastChangeRound(identifier[:])
 		if err != nil {
 			logger.Debug("failed to clean change round by flag", zap.Error(err))
