@@ -50,9 +50,6 @@ type Options struct {
 
 	WS        api.WebSocketServer
 	WsAPIPort int
-
-	// TODO need to be delete
-	CleanAllChangeRound bool `yaml:"CleanAllChangeRound" env:"CLEAN_ALL_CHANGE_ROUND" env-default:"true" env-description:"Whether to generate operator key if none is passed by config"`
 }
 
 // operatorNode implements Node interface
@@ -71,19 +68,14 @@ type operatorNode struct {
 
 	forkVersion forksprotocol.ForkVersion
 
-	ws        api.WebSocketServer
-	wsAPIPort int
+	ws               api.WebSocketServer
+	wsAPIPort        int
+	clearChangeRound bool
 }
 
 // New is the constructor of operatorNode
 func New(opts Options) Node {
 	qbftStorage := qbftstorage.New(opts.DB, opts.Logger, spectypes.BNRoleAttester.String(), opts.ForkVersion)
-
-	if opts.CleanAllChangeRound {
-		if err := qbftStorage.CleanAllChangeRound(); err != nil {
-			opts.Logger.Error("failed to clean all chang round", zap.Error(err))
-		}
-	}
 
 	node := &operatorNode{
 		context:        opts.Context,

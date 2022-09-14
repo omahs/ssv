@@ -70,6 +70,9 @@ type ControllerOptions struct {
 	// worker flags
 	WorkersCount    int `yaml:"MsgWorkersCount" env:"MSG_WORKERS_COUNT" env-default:"4096" env-description:"Number of goroutines to use for message workers"`
 	QueueBufferSize int `yaml:"MsgWorkerBufferSize" env:"MSG_WORKER_BUFFER_SIZE" env-default:"1024" env-description:"Buffer size for message workers"`
+
+	// TODO need to be delete
+	CleanAllChangeRound bool `yaml:"CleanAllChangeRound" env:"CLEAN_ALL_CHANGE_ROUND" env-default:"true" env-description:"Whether to generate operator key if none is passed by config"`
 }
 
 // Controller represent the validators controller,
@@ -189,6 +192,7 @@ func NewController(options ControllerOptions) Controller {
 		ReadMode:                   false, // set to false for committee validators. if non committee, we set validator with true value
 		FullNode:                   options.FullNode,
 		NewDecidedHandler:          options.NewDecidedHandler,
+		CleanChangeRound:           options.CleanAllChangeRound,
 	}
 	ctrl := controller{
 		collection:                 collection,

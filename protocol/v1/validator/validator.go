@@ -46,6 +46,8 @@ type Options struct {
 	FullNode                   bool
 	NewDecidedHandler          controller.NewDecidedHandler
 	DutyRoles                  []spectypes.BeaconRole
+
+	CleanChangeRound bool
 }
 
 // Validator represents the validator
@@ -162,6 +164,14 @@ func setupIbfts(opt *Options, logger *zap.Logger) map[spectypes.BeaconRole]contr
 
 func setupIbftController(role spectypes.BeaconRole, logger *zap.Logger, opt *Options) controller.IController {
 	identifier := spectypes.NewMsgID(opt.Share.PublicKey.Serialize(), role)
+
+	if opt.CleanChangeRound {
+		err := opt.IbftStorage.CleanLastChangeRound(identifier[:])
+		if err != nil {
+			logger.Debug("failed to clean change round by flag", zap.Error(err))
+		}
+	}
+
 	opts := controller.Options{
 		Context:           opt.Context,
 		Role:              role,
