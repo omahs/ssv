@@ -36,6 +36,7 @@ type ChangeRoundStore interface {
 	SaveLastChangeRoundMsg(msg *specqbft.SignedMessage) error
 	// CleanLastChangeRound cleans last change round message of some validator, should be called upon controller init
 	CleanLastChangeRound(identifier []byte) error
+	CleanAllChangeRound() error
 }
 
 // QBFTStore is the store used by QBFT components

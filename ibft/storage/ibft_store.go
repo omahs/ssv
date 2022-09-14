@@ -252,6 +252,18 @@ func (i *ibftStorage) CleanLastChangeRound(identifier []byte) error {
 	return nil
 }
 
+func (i *ibftStorage) CleanAllChangeRound() error {
+	i.forkLock.RLock()
+	defer i.forkLock.RUnlock()
+
+	prefix := i.prefix
+	prefix = append(prefix, []byte(lastChangeRoundKey)...)
+	if err := i.db.DeleteByPrefix(prefix); err != nil {
+		return errors.Wrap(err, "failed to remove decided")
+	}
+	return nil
+}
+
 func (i *ibftStorage) save(value []byte, id string, pk []byte, keyParams ...[]byte) error {
 	prefix := append(i.prefix, pk...)
 	key := i.key(id, keyParams...)
