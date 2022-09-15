@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	spectypes "github.com/bloxapp/ssv-spec/types"
 	"math/rand"
+	"sync"
 
 	specqbft "github.com/bloxapp/ssv-spec/qbft"
 	libp2pnetwork "github.com/libp2p/go-libp2p-core/network"
@@ -182,6 +183,11 @@ func (n *p2pNetwork) getSubsetOfPeers(vpk spectypes.ValidatorPK, peerCount int, 
 	return peers[:peerCount], nil
 }
 
+type incomingSyncReq struct {
+	pid peer.ID
+	raw []byte
+}
+
 func (n *p2pNetwork) makeSyncRequest(peers []peer.ID, mid spectypes.MessageID, protocol libp2p_protocol.ID, syncMsg *message.SyncMessage) ([]p2pprotocol.SyncResult, error) {
 	var results []p2pprotocol.SyncResult
 	data, err := syncMsg.Encode()
@@ -197,23 +203,41 @@ func (n *p2pNetwork) makeSyncRequest(peers []peer.ID, mid spectypes.MessageID, p
 	if err != nil {
 		return nil, err
 	}
+	var wg sync.WaitGroup
+	distinct := make(map[string]bool)
+	msgs := make(chan incomingSyncReq)
 	plogger := n.logger.With(zap.String("protocol", string(protocol)), zap.String("identifier", mid.String()))
 	msgID := n.fork.MsgID()
-	distinct := make(map[string]bool)
+
 	for _, pid := range peers {
-		logger := plogger.With(zap.String("peer", pid.String()))
-		raw, err := n.streamCtrl.Request(pid, protocol, encoded)
-		if err != nil {
-			logger.Debug("could not make stream request", zap.Error(err))
-			continue
-		}
-		mid := msgID(raw)
+		wg.Add(1)
+		go func(pid peer.ID) {
+			defer wg.Done()
+			logger := plogger.With(zap.String("peer", pid.String()))
+			raw, err := n.streamCtrl.Request(pid, protocol, encoded)
+			if err != nil {
+				logger.Debug("could not make stream request", zap.Error(err))
+				return
+			}
+			msgs <- incomingSyncReq{pid: pid, raw: raw}
+		}(pid)
+	}
+
+	go func() {
+		wg.Wait()
+		close(msgs)
+	}()
+
+	for in := range msgs {
+		pid := in.pid.String()
+		logger := plogger.With(zap.String("peer", pid))
+		mid := msgID(in.raw)
 		if distinct[mid] {
 			//logger.Debug("duplicated sync msg", zap.String("mid", mid))
 			continue
 		}
 		distinct[mid] = true
-		res, err := n.fork.DecodeNetworkMsg(raw)
+		res, err := n.fork.DecodeNetworkMsg(in.raw)
 		if err != nil {
 			logger.Debug("could not decode stream response", zap.Error(err))
 			continue
@@ -221,9 +245,10 @@ func (n *p2pNetwork) makeSyncRequest(peers []peer.ID, mid spectypes.MessageID, p
 		//logger.Debug("got stream response")
 		results = append(results, p2pprotocol.SyncResult{
 			Msg:    res,
-			Sender: pid.String(),
+			Sender: pid,
 		})
 	}
+
 	return results, nil
 }
 
