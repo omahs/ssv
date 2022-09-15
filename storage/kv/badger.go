@@ -2,6 +2,7 @@ package kv
 
 import (
 	"bytes"
+	"github.com/bloxapp/ssv/utils/logex"
 	"time"
 
 	"github.com/bloxapp/ssv/storage/basedb"
@@ -99,6 +100,7 @@ func (b *BadgerDb) GetMany(prefix []byte, keys [][]byte, iterator func(basedb.Ob
 		for _, k := range keys {
 			item, err := txn.Get(append(prefix, k...))
 			if err != nil {
+				logex.GetLogger().Debug("badger 1 get error!!!", zap.Error(err))
 				if isNotFoundError(err) { // in order to couple the not found errors together
 					b.logger.Debug("item not found", zap.String("key", string(k)))
 					continue

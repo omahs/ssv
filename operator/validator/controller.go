@@ -164,6 +164,32 @@ func NewController(options ControllerOptions) Controller {
 
 	qbftStorage := storage.New(options.DB, options.Logger, spectypes.BNRoleAttester.String(), options.ForkVersion) // TODO need to support multi duties
 
+	if options.CleanAllChangeRound {
+		shares, err := collection.GetAllValidatorShares()
+		if err != nil {
+			options.Logger.Debug("failed to get all shares", zap.Error(err))
+		}
+		for _, share := range shares {
+			identifier := spectypes.NewMsgID(share.PublicKey.Serialize(), spectypes.BNRoleAttester)
+			options.Logger.Debug("clean change round by flag")
+			deleted, err := qbftStorage.CleanLastChangeRound(identifier[:])
+			if err != nil {
+				options.Logger.Debug("failed to clean change round by flag", zap.Error(err))
+			}
+
+			var singers []spectypes.OperatorID
+			for k := range share.Committee { // get all possible msg's from committee
+				singers = append(singers, k)
+			}
+
+			msgs, err := qbftStorage.GetLastChangeRoundMsg(identifier[:], singers...)
+			if err != nil {
+				options.Logger.Debug("failed to load change round messages from storage", zap.Error(err))
+			}
+			options.Logger.Debug("done clean change round by flag", zap.Int("deleted", deleted), zap.Any("", msgs))
+		}
+	}
+
 	// lookup in a map that holds all relevant operators
 	operatorsIDs := &sync.Map{}
 
