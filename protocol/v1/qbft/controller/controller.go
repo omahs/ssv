@@ -263,9 +263,9 @@ func (c *Controller) StartInstance(opts instance.ControllerStartInstanceOptions,
 
 	done := reportIBFTInstanceStart(c.ValidatorShare.PublicKey.SerializeToHexStr())
 
-	c.setHeight(opts.Height)                                                                 // update once height determent
-	instanceOpts.ChangeRoundStore = c.ChangeRoundStorage                                     // in order to set the last change round msg
-	if err := instanceOpts.ChangeRoundStore.CleanLastChangeRound(c.Identifier); err != nil { // clean previews last change round msg's (TODO place in instance?)
+	c.setHeight(opts.Height)                                                                    // update once height determent
+	instanceOpts.ChangeRoundStore = c.ChangeRoundStorage                                        // in order to set the last change round msg
+	if _, err := instanceOpts.ChangeRoundStore.CleanLastChangeRound(c.Identifier); err != nil { // clean previews last change round msg's (TODO place in instance?)
 		c.Logger.Warn("could not clean change round", zap.Error(err))
 	}
 

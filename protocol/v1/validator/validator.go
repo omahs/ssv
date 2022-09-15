@@ -167,10 +167,21 @@ func setupIbftController(role spectypes.BeaconRole, logger *zap.Logger, opt *Opt
 
 	if opt.CleanChangeRound {
 		logger.Debug("clean change round by flag")
-		err := opt.IbftStorage.CleanLastChangeRound(identifier[:])
+		deleted, err := opt.IbftStorage.CleanLastChangeRound(identifier[:])
 		if err != nil {
 			logger.Debug("failed to clean change round by flag", zap.Error(err))
 		}
+
+		var singers []spectypes.OperatorID
+		for k := range opt.Share.Committee { // get all possible msg's from committee
+			singers = append(singers, k)
+		}
+
+		msgs, err := opt.IbftStorage.GetLastChangeRoundMsg(identifier[:], singers...)
+		if err != nil {
+			opt.Logger.Debug("failed to load change round messages from storage", zap.Error(err))
+		}
+		opt.Logger.Debug("done clean change round by flag", zap.Int("deleted", deleted), zap.Any("", msgs))
 	}
 
 	opts := controller.Options{

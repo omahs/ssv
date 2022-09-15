@@ -102,14 +102,44 @@ func TestIbftStorage_CleanLastChangeRound(t *testing.T) {
 		}
 	}
 
-	require.NoError(t, storage.SaveLastChangeRoundMsg(generateMsg(msgID, 0, 1, 1)))
-	require.NoError(t, storage.SaveLastChangeRoundMsg(generateMsg(msgID, 0, 1, 2)))
-	require.NoError(t, storage.SaveLastChangeRoundMsg(generateMsg(msgID, 0, 1, 3)))
-	require.NoError(t, storage.SaveLastChangeRoundMsg(generateMsg(msgID, 0, 1, 4)))
-	require.NoError(t, storage.SaveLastChangeRoundMsg(generateMsg(differMsgID, 0, 1, 1))) // different identifier
+	require.NoError(t, storage.SaveLastChangeRoundMsg(generateMsg(msgID, 10, 1, 1)))
+	require.NoError(t, storage.SaveLastChangeRoundMsg(generateMsg(msgID, 9, 1, 2)))
+	require.NoError(t, storage.SaveLastChangeRoundMsg(generateMsg(msgID, 10, 1, 3)))
+	require.NoError(t, storage.SaveLastChangeRoundMsg(generateMsg(msgID, 9, 1, 4)))
+	require.NoError(t, storage.SaveLastChangeRoundMsg(generateMsg(differMsgID, 9, 1, 1))) // different identifier
 
-	require.NoError(t, storage.CleanLastChangeRound(msgID[:]))
-	res, err := storage.GetLastChangeRoundMsg(msgID[:])
+	signers := []spectypes.OperatorID{
+		spectypes.OperatorID(1),
+		spectypes.OperatorID(2),
+		spectypes.OperatorID(3),
+		spectypes.OperatorID(4),
+	}
+	res, err := storage.GetLastChangeRoundMsg(msgID[:], signers...)
+	require.Equal(t, 4, len(res))
+	for _, cr := range res {
+		require.Equal(t, specqbft.Round(1), cr.Message.Round)
+		require.Equal(t, msgID[:], cr.Message.Identifier)
+	}
+
+	// check if saved properly
+	res, err = storage.GetLastChangeRoundMsg(msgID[:])
+	require.Equal(t, 4, len(res))
+	for _, cr := range res {
+		require.Equal(t, specqbft.Round(1), cr.Message.Round)
+		require.Equal(t, msgID[:], cr.Message.Identifier)
+	}
+
+	// clean msgs
+	deleted, err := storage.CleanLastChangeRound(msgID[:])
+	require.NoError(t, err)
+	require.Equal(t, 4, deleted)
+
+	// check if still exist
+	res, err = storage.GetLastChangeRoundMsg(msgID[:], signers...)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(res))
+
+	res, err = storage.GetLastChangeRoundMsg(msgID[:])
 	require.NoError(t, err)
 	require.Equal(t, 0, len(res))
 

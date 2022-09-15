@@ -241,7 +241,7 @@ func (i *ibftStorage) GetLastChangeRoundMsg(identifier []byte, signers ...specty
 }
 
 // CleanLastChangeRound cleans last change round message of some validator, should be called upon controller init
-func (i *ibftStorage) CleanLastChangeRound(identifier []byte) error {
+func (i *ibftStorage) CleanLastChangeRound(identifier []byte) (int, error) {
 	i.forkLock.RLock()
 	defer i.forkLock.RUnlock()
 
@@ -250,10 +250,9 @@ func (i *ibftStorage) CleanLastChangeRound(identifier []byte) error {
 	prefix = append(prefix, []byte(lastChangeRoundKey)...)
 	n, err := i.db.DeleteByPrefix(prefix)
 	if err != nil {
-		return errors.Wrap(err, "failed to remove last change round")
+		return 0, errors.Wrap(err, "failed to remove last change round")
 	}
-	i.logger.Debug("removed last change round", zap.Int("count", n))
-	return nil
+	return n, nil
 }
 
 func (i *ibftStorage) CleanAllChangeRound() error {

@@ -170,14 +170,14 @@ func (i *ibftStorage) GetLastChangeRoundMsg(identifier []byte, signers ...specty
 	return res, nil
 }
 
-func (i *ibftStorage) CleanLastChangeRound(identifier []byte) error {
+func (i *ibftStorage) CleanLastChangeRound(identifier []byte) (int, error) {
 	prefix := i.prefix
 	prefix = append(prefix, identifier[:]...)
 	prefix = append(prefix, []byte(lastChangeRoundKey)...)
 	if err := i.db.RemoveAllByCollection(prefix); err != nil {
-		return errors.Wrap(err, "failed to remove decided")
+		return 0, errors.Wrap(err, "failed to remove decided")
 	}
-	return nil
+	return 0, nil
 }
 
 func (i *ibftStorage) save(value []byte, id string, pk []byte, keyParams ...[]byte) error {
