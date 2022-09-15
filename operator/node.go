@@ -68,9 +68,9 @@ type operatorNode struct {
 
 	forkVersion forksprotocol.ForkVersion
 
-	ws               api.WebSocketServer
-	wsAPIPort        int
-	clearChangeRound bool
+	ws        api.WebSocketServer
+	wsAPIPort int
+	//clearChangeRound bool
 }
 
 // New is the constructor of operatorNode

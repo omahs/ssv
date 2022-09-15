@@ -47,6 +47,7 @@ func (c *Controller) processConsensusMsg(signedMessage *specqbft.SignedMessage) 
 	}
 }
 
+// UponExistingInstanceMsg act upon a message for the current running instance
 func (c *Controller) UponExistingInstanceMsg(logger *zap.Logger, msg *specqbft.SignedMessage) (bool, error) {
 	if c.GetCurrentInstance() != nil && c.GetCurrentInstance().GetState().GetHeight() == msg.Message.Height { // only for the instance with the same height as msg
 		decided, err := c.GetCurrentInstance().ProcessMsg(msg)
