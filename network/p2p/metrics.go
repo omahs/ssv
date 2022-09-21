@@ -56,6 +56,8 @@ func (n *p2pNetwork) reportAllPeers() {
 
 func (n *p2pNetwork) reportPeerIdentities() {
 	pids := n.host.Network().Peers()
+	n.logger.Debug("reporting peers identity",
+		zap.Int("count", len(pids)))
 	for _, pid := range pids {
 		n.reportPeerIdentity(pid)
 	}
