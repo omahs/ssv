@@ -88,16 +88,14 @@ func (n *p2pNetwork) reportPeerIdentity(pid peer.ID) {
 	oid, forkv, nodeVersion, nodeType := unknown, unknown, unknown, unknown
 	ni, err := n.idx.GetNodeInfo(pid)
 	if err == nil && ni != nil {
-		oid = unknown
-		nodeVersion = unknown
 		forkv = ni.ForkVersion.String()
 		if ni.Metadata != nil {
 			oid = ni.Metadata.OperatorID
 			nodeVersion = ni.Metadata.NodeVersion
-		}
-		nodeType = "operator"
-		if len(oid) == 0 && nodeVersion != unknown {
-			nodeType = "exporter"
+			nodeType = "operator"
+			if len(oid) == 0 && nodeVersion != unknown {
+				nodeType = "exporter"
+			}
 		}
 	}
 	nodeState := n.idx.State(pid)
