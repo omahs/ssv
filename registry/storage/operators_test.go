@@ -14,8 +14,8 @@ import (
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
-func TestStorage_SaveAndGetOperatorInformation(t *testing.T) {
-	storage, done := newStorageForTest()
+func TestStorage_SaveAndGetOperatorData(t *testing.T) {
+	storage, done := newOperatorStorageForTest()
 	require.NotNil(t, storage)
 	defer done()
 
@@ -108,7 +108,7 @@ func TestStorage_SaveAndGetOperatorInformation(t *testing.T) {
 }
 
 func TestStorage_ListOperators(t *testing.T) {
-	storage, done := newStorageForTest()
+	storage, done := newOperatorStorageForTest()
 	require.NotNil(t, storage)
 	defer done()
 
@@ -137,7 +137,7 @@ func TestStorage_ListOperators(t *testing.T) {
 	})
 }
 
-func newStorageForTest() (OperatorsCollection, func()) {
+func newOperatorStorageForTest() (OperatorsCollection, func()) {
 	logger := zap.L()
 	db, err := ssvstorage.GetStorageFactory(basedb.Options{
 		Type:   "badger-memory",
