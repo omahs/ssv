@@ -34,12 +34,12 @@ import (
 	forksprotocol "github.com/bloxapp/ssv/protocol/forks"
 	beaconprotocol "github.com/bloxapp/ssv/protocol/v2/blockchain/beacon"
 	"github.com/bloxapp/ssv/protocol/v2/types"
+	registrystorage "github.com/bloxapp/ssv/registry/storage"
 	"github.com/bloxapp/ssv/storage"
 	"github.com/bloxapp/ssv/storage/basedb"
 	"github.com/bloxapp/ssv/utils/commons"
 	"github.com/bloxapp/ssv/utils/format"
 	"github.com/bloxapp/ssv/utils/logex"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
 type config struct {
@@ -143,16 +143,19 @@ var StartNodeCmd = &cobra.Command{
 		}
 
 		nodeStorage := operatorstorage.NewNodeStorage(db, Logger)
-		if err := nodeStorage.SetupPrivateKey(cfg.GenerateOperatorPrivateKey, cfg.OperatorPrivateKey); err != nil {
-			Logger.Fatal("failed to setup operator private key", zap.Error(err))
-		}
-		operatorPrivateKey, found, err := nodeStorage.GetPrivateKey()
-		if err != nil || !found {
-			Logger.Fatal("failed to get operator private key", zap.Error(err))
-		}
-		operatorPubKey, err := rsaencryption.ExtractPublicKey(operatorPrivateKey)
+		operatorPubKey, err := nodeStorage.SetupPrivateKey(cfg.OperatorPrivateKey, cfg.GenerateOperatorPrivateKey)
 		if err != nil {
-			Logger.Fatal("failed to extract operator public key", zap.Error(err))
+			Logger.Fatal("could not setup operator private key", zap.Error(err))
+		}
+		var operatorData *registrystorage.OperatorData
+		operatorData, found, err := nodeStorage.GetOperatorDataByPubKey(operatorPubKey)
+		if err != nil {
+			Logger.Fatal("could not get operator data by public key", zap.Error(err))
+		}
+		if !found {
+			operatorData = &registrystorage.OperatorData{
+				PublicKey: operatorPubKey,
+			}
 		}
 
 		istore := ssv_identity.NewIdentityStore(db, Logger)
@@ -162,7 +165,7 @@ var StartNodeCmd = &cobra.Command{
 		}
 
 		if len(cfg.P2pNetworkConfig.Subnets) == 0 {
-			subnets := getNodeSubnets(Logger, db, ssvForkVersion, operatorPubKey)
+			subnets := getNodeSubnets(Logger, db, ssvForkVersion, operatorData.ID)
 			cfg.P2pNetworkConfig.Subnets = subnets.String()
 		}
 
@@ -192,7 +195,7 @@ var StartNodeCmd = &cobra.Command{
 		cfg.SSVOptions.ValidatorOptions.CleanRegistryData = cfg.ETH1Options.CleanRegistryData
 
 		cfg.SSVOptions.ValidatorOptions.ShareEncryptionKeyProvider = nodeStorage.GetPrivateKey
-		cfg.SSVOptions.ValidatorOptions.OperatorPubKey = operatorPubKey
+		cfg.SSVOptions.ValidatorOptions.OperatorData = operatorData
 		cfg.SSVOptions.ValidatorOptions.RegistryStorage = nodeStorage
 
 		Logger.Info("using registry contract address", zap.String("addr", cfg.ETH1Options.RegistryContractAddr), zap.String("abi version", cfg.ETH1Options.AbiVersion.String()))
@@ -283,7 +286,12 @@ func startMetricsHandler(ctx context.Context, logger *zap.Logger, port int, enab
 
 // getNodeSubnets reads all shares and calculates the subnets for this node
 // note that we'll trigger another update once finished processing registry events
-func getNodeSubnets(logger *zap.Logger, db basedb.IDb, ssvForkVersion forksprotocol.ForkVersion, operatorPubKey string) records.Subnets {
+func getNodeSubnets(
+	logger *zap.Logger,
+	db basedb.IDb,
+	ssvForkVersion forksprotocol.ForkVersion,
+	operatorID spectypes.OperatorID,
+) records.Subnets {
 	f := forksfactory.NewFork(ssvForkVersion)
 	sharesStorage := validator.NewCollection(validator.CollectionOptions{
 		DB:     db,
@@ -291,7 +299,7 @@ func getNodeSubnets(logger *zap.Logger, db basedb.IDb, ssvForkVersion forksproto
 	})
 	subnetsMap := make(map[int]bool)
 	shares, err := sharesStorage.GetFilteredValidatorShares(func(share *types.SSVShare) bool {
-		return !share.Liquidated && share.BelongsToOperator(operatorPubKey)
+		return !share.Liquidated && share.BelongsToOperator(operatorID)
 	})
 	if err != nil {
 		logger.Warn("could not read validators to bootstrap subnets")

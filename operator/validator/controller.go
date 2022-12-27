@@ -67,7 +67,7 @@ type ControllerOptions struct {
 	CleanRegistryData          bool
 	FullNode                   bool `yaml:"FullNode" env:"FULLNODE" env-default:"false" env-description:"Flag that indicates whether the node saves decided history or just the latest messages"`
 	KeyManager                 spectypes.KeyManager
-	OperatorPubKey             string
+	OperatorData               *registrystorage.OperatorData
 	RegistryStorage            nodestorage.Storage
 	ForkVersion                forksprotocol.ForkVersion
 	//NewDecidedHandler          v1qbftcontroller.NewDecidedHandler
@@ -109,7 +109,7 @@ type controller struct {
 	keyManager           spectypes.KeyManager
 
 	shareEncryptionKeyProvider ShareEncryptionKeyProvider
-	operatorPubKey             string
+	operatorData               *registrystorage.OperatorData
 
 	validatorsMap    *validatorsMap
 	validatorOptions *validator.Options
@@ -169,7 +169,7 @@ func NewController(options ControllerOptions) Controller {
 		logger:                     options.Logger.With(zap.String("component", "validatorsController")),
 		beacon:                     options.Beacon,
 		shareEncryptionKeyProvider: options.ShareEncryptionKeyProvider,
-		operatorPubKey:             options.OperatorPubKey,
+		operatorData:               options.OperatorData,
 		keyManager:                 options.KeyManager,
 		network:                    options.Network,
 		forkVersion:                options.ForkVersion,
@@ -214,7 +214,7 @@ func (c *controller) GetValidatorStats() (uint64, uint64, uint64, error) {
 	operatorShares := uint64(0)
 	active := uint64(0)
 	for _, s := range allShares {
-		if ok := s.BelongsToOperator(c.operatorPubKey); ok {
+		if ok := s.BelongsToOperator(c.operatorData.ID); ok {
 			operatorShares++
 		}
 		if s.HasBeaconMetadata() && s.BeaconMetadata.IsActive() {
@@ -303,7 +303,7 @@ func (c *controller) ListenToEth1Events(feed *event.Feed) {
 
 // StartValidators loads all persisted shares and setup the corresponding validators
 func (c *controller) StartValidators() {
-	shares, err := c.collection.GetFilteredValidatorShares(NotLiquidatedAndByOperatorPubKey(c.operatorPubKey))
+	shares, err := c.collection.GetFilteredValidatorShares(ByOperatorIDAndNotLiquidated(c.operatorData.ID))
 	if err != nil {
 		c.logger.Fatal("failed to get validators shares", zap.Error(err))
 	}
@@ -434,30 +434,26 @@ func (c *controller) onMetadataUpdated(pk string, meta *beaconprotocol.Validator
 }
 
 // onShareCreate is called when a validator was added/updated during registry sync
-func (c *controller) onShareCreate(validatorEvent abiparser.ValidatorAddedEvent) (*types.SSVShare, bool, error) {
+func (c *controller) onShareCreate(validatorEvent abiparser.ValidatorAddedEvent) (*types.SSVShare, error) {
 	share, shareSecret, err := ShareFromValidatorEvent(
 		validatorEvent,
-		c.operatorsCollection,
 		c.shareEncryptionKeyProvider,
-		c.operatorPubKey,
+		c.operatorData,
 	)
 	if err != nil {
-		return nil, false, errors.Wrap(err, "could not extract validator share from event")
+		return nil, errors.Wrap(err, "could not extract validator share from event")
 	}
 
-	// determine if the share belongs to operator
-	isOperatorShare := share.BelongsToOperator(c.operatorPubKey)
-
-	if isOperatorShare {
+	if share.BelongsToOperator(c.operatorData.ID) {
 		if shareSecret == nil {
-			return nil, isOperatorShare, errors.New("could not decode shareSecret")
+			return nil, errors.New("could not decode shareSecret")
 		}
 
 		logger := c.logger.With(zap.String("pubKey", hex.EncodeToString(share.ValidatorPubKey)))
 
 		// TODO: should we care about non-committee podIds?
 		if err = share.SetPodID(); err != nil {
-			return nil, false, errors.Wrap(err, "could not set share pod id")
+			return nil, errors.Wrap(err, "could not set share pod id")
 		}
 
 		// get metadata
@@ -469,16 +465,16 @@ func (c *controller) onShareCreate(validatorEvent abiparser.ValidatorAddedEvent)
 
 		// save secret key
 		if err := c.keyManager.AddShare(shareSecret); err != nil {
-			return nil, isOperatorShare, errors.Wrap(err, "could not add share secret to key manager")
+			return nil, errors.Wrap(err, "could not add share secret to key manager")
 		}
 	}
 
 	// save validator data
 	if err := c.collection.SaveValidatorShare(share); err != nil {
-		return nil, isOperatorShare, errors.Wrap(err, "could not save validator share")
+		return nil, errors.Wrap(err, "could not save validator share")
 	}
 
-	return share, isOperatorShare, nil
+	return share, nil
 }
 
 // onShareRemove is called when a validator was removed
@@ -540,7 +536,7 @@ func (c *controller) UpdateValidatorMetaDataLoop() {
 	for {
 		time.Sleep(c.metadataUpdateInterval)
 
-		shares, err := c.collection.GetFilteredValidatorShares(NotLiquidatedAndByOperatorPubKey(c.operatorPubKey))
+		shares, err := c.collection.GetFilteredValidatorShares(ByOperatorIDAndNotLiquidated(c.operatorData.ID))
 		if err != nil {
 			c.logger.Warn("could not get validators shares for metadata update", zap.Error(err))
 			continue

@@ -1,9 +1,9 @@
 package validator
 
 import (
+	"bytes"
 	"encoding/hex"
-	"strings"
-
+	"fmt"
 	spectypes "github.com/bloxapp/ssv-spec/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
@@ -51,25 +51,38 @@ func (c *controller) Eth1EventHandler(ongoingSync bool) eth1.SyncEventHandler {
 
 // handleOperatorAddedEvent parses the given event and saves operator data
 func (c *controller) handleOperatorAddedEvent(event abiparser.OperatorAddedEvent) ([]zap.Field, error) {
-	eventOperatorPubKey := string(event.PublicKey)
-	od := registrystorage.OperatorData{
-		PublicKey:    eventOperatorPubKey,
-		OwnerAddress: event.Owner,
-		Index:        event.Id,
+	// throw an error if there is an existing operator with the same public key and different operator id
+	if c.operatorData.ID != 0 && bytes.Equal(c.operatorData.PublicKey, event.PublicKey) &&
+		c.operatorData.ID != spectypes.OperatorID(event.Id) {
+		return nil, &abiparser.MalformedEventError{
+			Err: errors.New(fmt.Sprintf("operator registered with the same operator public key")),
+		}
 	}
-	if err := c.operatorsCollection.SaveOperatorData(&od); err != nil {
+
+	isOperatorEvent := false
+	od := &registrystorage.OperatorData{
+		PublicKey:    event.PublicKey,
+		OwnerAddress: event.Owner,
+		ID:           spectypes.OperatorID(event.Id),
+	}
+	if err := c.operatorsCollection.SaveOperatorData(od); err != nil {
 		return nil, errors.Wrap(err, "could not save operator data")
 	}
 
+	if bytes.Equal(event.PublicKey, c.operatorData.PublicKey) {
+		isOperatorEvent = true
+		c.operatorData = od
+	}
+
 	logFields := make([]zap.Field, 0)
-	if strings.EqualFold(eventOperatorPubKey, c.operatorPubKey) || c.validatorOptions.FullNode {
+	if isOperatorEvent || c.validatorOptions.FullNode {
 		logFields = append(logFields,
-			zap.Uint64("operatorId", od.Index),
-			zap.String("operatorPubKey", od.PublicKey),
+			zap.Uint64("operatorId", uint64(od.ID)),
+			zap.String("operatorPubKey", string(od.PublicKey)),
 			zap.String("ownerAddress", od.OwnerAddress.String()),
 		)
 	}
-	exporter.ReportOperatorIndex(c.logger, &od)
+	exporter.ReportOperatorIndex(c.logger, od)
 	return logFields, nil
 }
 
@@ -78,7 +91,7 @@ func (c *controller) handleOperatorRemovedEvent(
 	event abiparser.OperatorRemovedEvent,
 	ongoingSync bool,
 ) ([]zap.Field, error) {
-	od, found, err := c.operatorsCollection.GetOperatorData(event.Id)
+	od, found, err := c.operatorsCollection.GetOperatorData(spectypes.OperatorID(event.Id))
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get operator data")
 	}
@@ -88,13 +101,12 @@ func (c *controller) handleOperatorRemovedEvent(
 		}
 	}
 
-	// TODO: check by operator ID, not operator public key
-	isOperatorEvent := strings.EqualFold(od.PublicKey, c.operatorPubKey)
+	isOperatorEvent := od.ID == c.operatorData.ID
 	logFields := make([]zap.Field, 0)
 	if isOperatorEvent || c.validatorOptions.FullNode {
 		logFields = append(logFields,
-			zap.Uint64("operatorId", od.Index),
-			zap.String("operatorPubKey", od.PublicKey),
+			zap.Uint64("operatorId", uint64(od.ID)),
+			zap.String("operatorPubKey", string(od.PublicKey)),
 			zap.String("ownerAddress", od.OwnerAddress.String()),
 		)
 	}
@@ -109,6 +121,7 @@ func (c *controller) handleOperatorRemovedEvent(
 		return nil, errors.Wrap(err, "could not get all operator validator shares")
 	}
 
+	// TODO: delete many
 	for _, share := range shares {
 		if err := c.collection.DeleteValidatorShare(share.ValidatorPubKey); err != nil {
 			return nil, errors.Wrap(err, "could not remove validator share")
@@ -120,7 +133,7 @@ func (c *controller) handleOperatorRemovedEvent(
 		}
 	}
 
-	err = c.operatorsCollection.DeleteOperatorData(event.Id)
+	err = c.operatorsCollection.DeleteOperatorData(spectypes.OperatorID(event.Id))
 	if err != nil {
 		return nil, errors.Wrap(err, "could not delete operator data")
 	}
@@ -134,6 +147,7 @@ func (c *controller) handleValidatorAddedEvent(
 	ongoingSync bool,
 ) ([]zap.Field, error) {
 	pubKey := hex.EncodeToString(ValidatorAddedEvent.PublicKey)
+	// TODO: check if need
 	if ongoingSync {
 		if _, ok := c.validatorsMap.GetValidator(pubKey); ok {
 			c.logger.Debug("validator was loaded already")
@@ -147,7 +161,7 @@ func (c *controller) handleValidatorAddedEvent(
 		return nil, errors.Wrap(err, "could not check if validator share exist")
 	}
 	if !found {
-		validatorShare, _, err = c.onShareCreate(ValidatorAddedEvent)
+		validatorShare, err = c.onShareCreate(ValidatorAddedEvent)
 		if err != nil {
 			metricsValidatorStatus.WithLabelValues(pubKey).Set(float64(validatorStatusError))
 			return nil, err
@@ -155,10 +169,11 @@ func (c *controller) handleValidatorAddedEvent(
 	}
 
 	logFields := make([]zap.Field, 0)
-	isOperatorShare := validatorShare.BelongsToOperator(c.operatorPubKey)
+	isOperatorShare := validatorShare.BelongsToOperator(c.operatorData.ID)
 	if isOperatorShare {
 		metricsValidatorStatus.WithLabelValues(pubKey).Set(float64(validatorStatusInactive))
 		if ongoingSync {
+			// TODO: should we handle error?
 			_, _ = c.onShareStart(validatorShare)
 		}
 	}
@@ -166,7 +181,7 @@ func (c *controller) handleValidatorAddedEvent(
 	if isOperatorShare || c.validatorOptions.FullNode {
 		logFields = append(logFields,
 			zap.String("validatorPubKey", pubKey),
-			zap.String("ownerAddress", validatorShare.OwnerAddress),
+			zap.String("ownerAddress", validatorShare.OwnerAddress.String()),
 			zap.Uint64s("operatorIds", ValidatorAddedEvent.OperatorIds),
 		)
 	}
@@ -204,7 +219,7 @@ func (c *controller) handleValidatorRemovedEvent(
 		return nil, errors.Wrap(err, "could not remove validator share")
 	}
 
-	isOperatorShare := share.BelongsToOperator(c.operatorPubKey)
+	isOperatorShare := share.BelongsToOperator(c.operatorData.ID)
 	if isOperatorShare && ongoingSync {
 		if err := c.onShareRemove(hex.EncodeToString(share.ValidatorPubKey), true); err != nil {
 			return nil, err
@@ -226,7 +241,7 @@ func (c *controller) handleValidatorRemovedEvent(
 	if isOperatorShare || c.validatorOptions.FullNode {
 		logFields = append(logFields,
 			zap.String("validatorPubKey", hex.EncodeToString(share.ValidatorPubKey)),
-			zap.String("ownerAddress", share.OwnerAddress),
+			zap.String("ownerAddress", share.OwnerAddress.String()),
 		)
 	}
 
@@ -311,7 +326,7 @@ func (c *controller) processPodEvent(
 	updatedPubKeys := make([]string, 0)
 
 	for _, share := range shares {
-		isOperatorShare := share.BelongsToOperator(c.operatorPubKey)
+		isOperatorShare := share.BelongsToOperator(c.operatorData.ID)
 		if isOperatorShare || c.validatorOptions.FullNode {
 			updatedPubKeys = append(updatedPubKeys, hex.EncodeToString(share.ValidatorPubKey))
 		}
@@ -344,7 +359,7 @@ func (c *controller) handleFeeRecipientAddressAddedEvent(
 
 	if ongoingSync && r != nil {
 		_ = c.validatorsMap.ForEach(func(v *validator.Validator) error {
-			if v.Share.OwnerAddress == r.Owner.String() {
+			if bytes.Equal(v.Share.OwnerAddress.Bytes(), r.Owner.Bytes()) {
 				v.Share.FeeRecipient = r.Fee
 			}
 			return nil

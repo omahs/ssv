@@ -139,7 +139,7 @@ func TestSetupPrivateKey(t *testing.T) {
 				require.Equal(t, string(existKeyByte), string(rsaencryption.PrivateKeyToByte(sk)))
 			}
 
-			err = operatorStorage.SetupPrivateKey(test.generateIfNone, test.passedKey)
+			pk, err := operatorStorage.SetupPrivateKey(test.passedKey, test.generateIfNone)
 			if test.expectedError != "" {
 				require.NotNil(t, err)
 				require.Equal(t, test.expectedError, err.Error())
@@ -149,9 +149,7 @@ func TestSetupPrivateKey(t *testing.T) {
 			require.NoError(t, err)
 			sk, found, err := operatorStorage.GetPrivateKey()
 			require.NoError(t, err)
-			pk, err := rsaencryption.ExtractPublicKey(sk) // from storage
 			require.True(t, found)
-			require.NoError(t, err)
 			require.NotNil(t, sk)
 			if test.existKey == "" && test.passedKey == "" { // new key generated
 				require.NoError(t, err)
