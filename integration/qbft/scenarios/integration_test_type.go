@@ -12,6 +12,7 @@ import (
 	specqbft "github.com/bloxapp/ssv-spec/qbft"
 	spectypes "github.com/bloxapp/ssv-spec/types"
 	spectestingutils "github.com/bloxapp/ssv-spec/types/testingutils"
+	"github.com/ethereum/go-ethereum/common"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/sync/errgroup"
@@ -31,7 +32,6 @@ import (
 	"github.com/bloxapp/ssv/storage"
 	"github.com/bloxapp/ssv/storage/basedb"
 	"github.com/bloxapp/ssv/utils/logex"
-	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
 // IntegrationTest defines an integration test.
@@ -226,14 +226,6 @@ func (it *IntegrationTest) Run() error {
 
 func (it *IntegrationTest) createValidators(sCtx *scenarioContext) (map[spectypes.OperatorID]*protocolvalidator.Validator, error) {
 	validators := make(map[spectypes.OperatorID]*protocolvalidator.Validator)
-	operators := make([][]byte, 0)
-	for _, k := range sCtx.nodeKeys {
-		pub, err := rsaencryption.ExtractPublicKey(k.OperatorKey)
-		if err != nil {
-			return nil, err
-		}
-		operators = append(operators, []byte(pub))
-	}
 
 	for _, operatorID := range it.OperatorIDs {
 		err := sCtx.keyManagers[operatorID].AddShare(spectestingutils.Testing4SharesSet().Shares[operatorID])
@@ -250,8 +242,7 @@ func (it *IntegrationTest) createValidators(sCtx *scenarioContext) (map[spectype
 					BeaconMetadata: &protocolbeacon.ValidatorMetadata{
 						Index: spec.ValidatorIndex(1),
 					},
-					OwnerAddress: "0x0",
-					Operators:    operators,
+					OwnerAddress: common.HexToAddress("0x0"),
 					Liquidated:   false,
 				},
 			},
