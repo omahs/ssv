@@ -1,11 +1,10 @@
 package network
 
 import (
+	"github.com/bloxapp/ssv/protocol/p2p"
 	"io"
 
 	spectypes "github.com/bloxapp/ssv-spec/types"
-
-	protocolp2p "github.com/bloxapp/ssv/protocol/v2/p2p"
 )
 
 // MessageRouter is accepting network messages and route them to the corresponding (internal) components

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"github.com/attestantio/go-eth2-client/spec/phase0"
+	"github.com/bloxapp/ssv/protocol/blockchain/beacon"
 	"time"
 
 	spectypes "github.com/bloxapp/ssv-spec/types"
@@ -15,7 +16,6 @@ import (
 
 	"github.com/bloxapp/ssv/operator/validator"
 	forksprotocol "github.com/bloxapp/ssv/protocol/forks"
-	beaconprotocol "github.com/bloxapp/ssv/protocol/v2/blockchain/beacon"
 )
 
 //go:generate mockgen -package=mocks -destination=./mocks/controller.go -source=./controller.go
@@ -40,8 +40,8 @@ type DutyController interface {
 type ControllerOptions struct {
 	Logger              *zap.Logger
 	Ctx                 context.Context
-	BeaconClient        beaconprotocol.Beacon
-	EthNetwork          beaconprotocol.Network
+	BeaconClient        beacon.Beacon
+	EthNetwork          beacon.Network
 	ValidatorController validator.Controller
 	Executor            DutyExecutor
 	GenesisEpoch        uint64
@@ -53,7 +53,7 @@ type ControllerOptions struct {
 type dutyController struct {
 	logger     *zap.Logger
 	ctx        context.Context
-	ethNetwork beaconprotocol.Network
+	ethNetwork beacon.Network
 	// executor enables to work with a custom execution
 	executor            DutyExecutor
 	fetcher             DutyFetcher

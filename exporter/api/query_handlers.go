@@ -3,14 +3,13 @@ package api
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/bloxapp/ssv/protocol/message"
+	"github.com/bloxapp/ssv/protocol/qbft/storage"
 
 	spectypes "github.com/bloxapp/ssv-spec/types"
 
 	specqbft "github.com/bloxapp/ssv-spec/qbft"
 	"go.uber.org/zap"
-
-	"github.com/bloxapp/ssv/protocol/v2/message"
-	qbftstorage "github.com/bloxapp/ssv/protocol/v2/qbft/storage"
 )
 
 const (

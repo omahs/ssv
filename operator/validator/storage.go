@@ -3,15 +3,15 @@ package validator
 import (
 	"encoding/hex"
 	"fmt"
+	beaconprotocol "github.com/bloxapp/ssv/protocol/blockchain/beacon"
+	"github.com/bloxapp/ssv/protocol/blockchain/eth1"
+	"github.com/bloxapp/ssv/protocol/types"
 	"strings"
 	"sync"
 
 	spectypes "github.com/bloxapp/ssv-spec/types"
 	"go.uber.org/zap"
 
-	beaconprotocol "github.com/bloxapp/ssv/protocol/v2/blockchain/beacon"
-	"github.com/bloxapp/ssv/protocol/v2/blockchain/eth1"
-	"github.com/bloxapp/ssv/protocol/v2/types"
 	"github.com/bloxapp/ssv/storage/basedb"
 )
 

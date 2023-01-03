@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/bloxapp/ssv/protocol/blockchain/beacon"
+	types2 "github.com/bloxapp/ssv/protocol/types"
 	logging "github.com/ipfs/go-log"
 	"log"
 	"net/http"
@@ -32,8 +34,6 @@ import (
 	operatorstorage "github.com/bloxapp/ssv/operator/storage"
 	"github.com/bloxapp/ssv/operator/validator"
 	forksprotocol "github.com/bloxapp/ssv/protocol/forks"
-	beaconprotocol "github.com/bloxapp/ssv/protocol/v2/blockchain/beacon"
-	"github.com/bloxapp/ssv/protocol/v2/types"
 	"github.com/bloxapp/ssv/storage"
 	"github.com/bloxapp/ssv/storage/basedb"
 	"github.com/bloxapp/ssv/utils/commons"
@@ -46,9 +46,9 @@ type config struct {
 	global_config.GlobalConfig `yaml:"global"`
 	DBOptions                  basedb.Options         `yaml:"db"`
 	SSVOptions                 operator.Options       `yaml:"ssv"`
-	ETH1Options                eth1.Options           `yaml:"eth1"`
-	ETH2Options                beaconprotocol.Options `yaml:"eth2"`
-	P2pNetworkConfig           p2pv1.Config           `yaml:"p2p"`
+	ETH1Options      eth1.Options   `yaml:"eth1"`
+	ETH2Options      beacon.Options `yaml:"eth2"`
+	P2pNetworkConfig p2pv1.Config   `yaml:"p2p"`
 
 	OperatorPrivateKey         string `yaml:"OperatorPrivateKey" env:"OPERATOR_KEY" env-description:"Operator private key, used to decrypt contract events"`
 	GenerateOperatorPrivateKey bool   `yaml:"GenerateOperatorPrivateKey" env:"GENERATE_OPERATOR_KEY" env-description:"Whether to generate operator key if none is passed by config"`
@@ -113,15 +113,15 @@ var StartNodeCmd = &cobra.Command{
 		}
 
 		if len(cfg.P2pNetworkConfig.NetworkID) == 0 {
-			cfg.P2pNetworkConfig.NetworkID = string(types.GetDefaultDomain())
+			cfg.P2pNetworkConfig.NetworkID = string(types2.GetDefaultDomain())
 		} else {
 			// we have some custom network id, overriding default domain
-			types.SetDefaultDomain([]byte(cfg.P2pNetworkConfig.NetworkID))
+			types2.SetDefaultDomain([]byte(cfg.P2pNetworkConfig.NetworkID))
 		}
-		Logger.Info("using ssv network", zap.String("domain", string(types.GetDefaultDomain())),
+		Logger.Info("using ssv network", zap.String("domain", string(types2.GetDefaultDomain())),
 			zap.String("net-id", cfg.P2pNetworkConfig.NetworkID))
 
-		eth2Network := beaconprotocol.NewNetwork(core.NetworkFromString(cfg.ETH2Options.Network), cfg.ETH2Options.MinGenesisTime)
+		eth2Network := beacon.NewNetwork(core.NetworkFromString(cfg.ETH2Options.Network), cfg.ETH2Options.MinGenesisTime)
 
 		currentEpoch := slots.EpochsSinceGenesis(time.Unix(int64(eth2Network.MinGenesisTime()), 0))
 		ssvForkVersion := forksprotocol.GetCurrentForkVersion(currentEpoch)
@@ -137,7 +137,7 @@ var StartNodeCmd = &cobra.Command{
 				zap.String("addr", cfg.ETH2Options.BeaconNodeAddr))
 		}
 
-		keyManager, err := ekm.NewETHKeyManagerSigner(db, beaconClient, eth2Network, types.GetDefaultDomain())
+		keyManager, err := ekm.NewETHKeyManagerSigner(db, beaconClient, eth2Network, types2.GetDefaultDomain())
 		if err != nil {
 			Logger.Fatal("could not create new eth-key-manager signer", zap.Error(err))
 		}
@@ -290,7 +290,7 @@ func getNodeSubnets(logger *zap.Logger, db basedb.IDb, ssvForkVersion forksproto
 		Logger: logger,
 	})
 	subnetsMap := make(map[int]bool)
-	shares, err := sharesStorage.GetFilteredValidatorShares(func(share *types.SSVShare) bool {
+	shares, err := sharesStorage.GetFilteredValidatorShares(func(share *types2.SSVShare) bool {
 		return !share.Liquidated && share.BelongsToOperator(operatorPubKey)
 	})
 	if err != nil {

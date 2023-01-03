@@ -3,7 +3,7 @@ package storage
 import (
 	spectypes "github.com/bloxapp/ssv-spec/types"
 	forksprotocol "github.com/bloxapp/ssv/protocol/forks"
-	"github.com/bloxapp/ssv/protocol/v2/qbft/storage"
+	"github.com/bloxapp/ssv/protocol/qbft/storage"
 	"github.com/bloxapp/ssv/storage/basedb"
 	"go.uber.org/zap"
 	"sync"
@@ -31,7 +31,7 @@ func NewStores() *QBFTStores {
 }
 
 // Get store from sync map by role type
-func (qs *QBFTStores) Get(role spectypes.BeaconRole) qbftstorage.QBFTStore {
+func (qs *QBFTStores) Get(role spectypes.BeaconRole) qbftstorage.qbftstorage {
 	s, ok := qs.m.Load(role)
 	if ok {
 		qbftStorage := s.(qbftstorage.QBFTStore)

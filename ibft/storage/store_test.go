@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"github.com/bloxapp/ssv/protocol/qbft/storage"
 	"testing"
 
 	specqbft "github.com/bloxapp/ssv-spec/qbft"
@@ -10,7 +11,6 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	forksprotocol "github.com/bloxapp/ssv/protocol/forks"
-	qbftstorage "github.com/bloxapp/ssv/protocol/v2/qbft/storage"
 	ssvstorage "github.com/bloxapp/ssv/storage"
 	"github.com/bloxapp/ssv/storage/basedb"
 	"github.com/bloxapp/ssv/utils/logex"

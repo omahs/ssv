@@ -3,6 +3,7 @@ package storage
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"github.com/bloxapp/ssv/protocol/qbft/storage"
 	"log"
 	"sync"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/bloxapp/ssv/ibft/storage/forks"
 	forksfactory "github.com/bloxapp/ssv/ibft/storage/forks/factory"
 	forksprotocol "github.com/bloxapp/ssv/protocol/forks"
-	qbftstorage "github.com/bloxapp/ssv/protocol/v2/qbft/storage"
 	"github.com/bloxapp/ssv/storage/basedb"
 )
 

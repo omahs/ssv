@@ -5,6 +5,8 @@ import (
 	"fmt"
 	spectypes "github.com/bloxapp/ssv-spec/types"
 	qbftstorage "github.com/bloxapp/ssv/ibft/storage"
+	"github.com/bloxapp/ssv/protocol/blockchain/beacon"
+	qbftstorageprotocol "github.com/bloxapp/ssv/protocol/qbft/storage"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
@@ -17,8 +19,6 @@ import (
 	"github.com/bloxapp/ssv/operator/storage"
 	"github.com/bloxapp/ssv/operator/validator"
 	forksprotocol "github.com/bloxapp/ssv/protocol/forks"
-	beaconprotocol "github.com/bloxapp/ssv/protocol/v2/blockchain/beacon"
-	qbftstorageprotocol "github.com/bloxapp/ssv/protocol/v2/qbft/storage"
 	"github.com/bloxapp/ssv/storage/basedb"
 )
 
@@ -30,9 +30,9 @@ type Node interface {
 
 // Options contains options to create the node
 type Options struct {
-	ETHNetwork          beaconprotocol.Network
-	Beacon              beaconprotocol.Beacon
-	Network             network.P2PNetwork
+	ETHNetwork beacon.Network
+	Beacon     beacon.Beacon
+	Network    network.P2PNetwork
 	Context             context.Context
 	Logger              *zap.Logger
 	Eth1Client          eth1.Client
@@ -53,15 +53,15 @@ type Options struct {
 
 // operatorNode implements Node interface
 type operatorNode struct {
-	ethNetwork     beaconprotocol.Network
-	context        context.Context
+	ethNetwork  beacon.Network
+	context     context.Context
 	validatorsCtrl validator.Controller
-	logger         *zap.Logger
-	beacon         beaconprotocol.Beacon
-	net            network.P2PNetwork
-	storage        storage.Storage
-	qbftStorage    qbftstorageprotocol.QBFTStore
-	eth1Client     eth1.Client
+	logger      *zap.Logger
+	beacon      beacon.Beacon
+	net         network.P2PNetwork
+	storage     storage.Storage
+	qbftStorage qbftstorageprotocol.QBFTStore
+	eth1Client  eth1.Client
 	dutyCtrl       duties.DutyController
 	// fork           *forks.Forker
 

@@ -2,6 +2,8 @@ package validator
 
 import (
 	"encoding/hex"
+	"github.com/bloxapp/ssv/protocol/blockchain/beacon"
+	types2 "github.com/bloxapp/ssv/protocol/types"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -14,17 +16,15 @@ import (
 	spectypes "github.com/bloxapp/ssv-spec/types"
 	"github.com/bloxapp/ssv/eth1"
 	"github.com/bloxapp/ssv/eth1/abiparser"
-	beaconprotocol "github.com/bloxapp/ssv/protocol/v2/blockchain/beacon"
-	"github.com/bloxapp/ssv/protocol/v2/types"
 	registrystorage "github.com/bloxapp/ssv/registry/storage"
 	"github.com/bloxapp/ssv/utils/rsaencryption"
 )
 
 // UpdateShareMetadata will update the given share object w/o involving storage,
 // it will be called only when a new share is created
-func UpdateShareMetadata(share *types.SSVShare, bc beaconprotocol.Beacon) (bool, error) {
+func UpdateShareMetadata(share *types2.SSVShare, bc beacon.Beacon) (bool, error) {
 	pk := hex.EncodeToString(share.ValidatorPubKey)
-	results, err := beaconprotocol.FetchValidatorsMetadata(bc, [][]byte{share.ValidatorPubKey})
+	results, err := beacon.FetchValidatorsMetadata(bc, [][]byte{share.ValidatorPubKey})
 	if err != nil {
 		return false, errors.Wrap(err, "failed to fetch metadata for share")
 	}
@@ -43,8 +43,8 @@ func ShareFromValidatorEvent(
 	registryStorage registrystorage.OperatorsCollection,
 	shareEncryptionKeyProvider ShareEncryptionKeyProvider,
 	operatorPubKey string,
-) (*types.SSVShare, *bls.SecretKey, error) {
-	validatorShare := types.SSVShare{}
+) (*types2.SSVShare, *bls.SecretKey, error) {
+	validatorShare := types2.SSVShare{}
 
 	// extract operator public keys from storage and fill the event
 	if err := SetOperatorPublicKeys(registryStorage, &validatorRegistrationEvent); err != nil {
@@ -99,7 +99,7 @@ func ShareFromValidatorEvent(
 	f := uint64(len(committee)-1) / 3
 	validatorShare.Quorum = 3 * f
 	validatorShare.PartialQuorum = 2 * f
-	validatorShare.DomainType = types.GetDefaultDomain()
+	validatorShare.DomainType = types2.GetDefaultDomain()
 	validatorShare.Committee = committee
 	validatorShare.SetOperators(validatorRegistrationEvent.OperatorPublicKeys)
 	validatorShare.Graffiti = []byte("ssv.network")

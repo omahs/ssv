@@ -2,6 +2,7 @@ package duties
 
 import (
 	"context"
+	"github.com/bloxapp/ssv/protocol/blockchain/beacon"
 	"sync"
 	"testing"
 	"time"
@@ -16,7 +17,6 @@ import (
 	"github.com/bloxapp/eth2-key-manager/core"
 
 	"github.com/bloxapp/ssv/operator/duties/mocks"
-	"github.com/bloxapp/ssv/protocol/v2/blockchain/beacon"
 )
 
 func TestDutyController_ListenToTicker(t *testing.T) {

@@ -2,11 +2,10 @@ package forks
 
 import (
 	spectypes "github.com/bloxapp/ssv-spec/types"
+	p2pprotocol "github.com/bloxapp/ssv/protocol/p2p"
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/libp2p/go-libp2p"
 	"github.com/libp2p/go-libp2p-core/protocol"
-
-	p2pprotocol "github.com/bloxapp/ssv/protocol/v2/p2p"
 )
 
 // Fork is an interface for network specific fork implementations

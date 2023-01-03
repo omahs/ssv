@@ -6,8 +6,7 @@ import (
 	specqbft "github.com/bloxapp/ssv-spec/qbft"
 	spectypes "github.com/bloxapp/ssv-spec/types"
 	spectestingutils "github.com/bloxapp/ssv-spec/types/testingutils"
-
-	protocolstorage "github.com/bloxapp/ssv/protocol/v2/qbft/storage"
+	protocolstorage "github.com/bloxapp/ssv/protocol/qbft/storage"
 )
 
 // Regular integration test.

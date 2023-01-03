@@ -1,6 +1,8 @@
 package ekm
 
 import (
+	"github.com/bloxapp/ssv/protocol/blockchain/beacon"
+	"github.com/bloxapp/ssv/protocol/types"
 	"testing"
 
 	spec "github.com/attestantio/go-eth2-client/spec/phase0"
@@ -11,8 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
 
-	beacon2 "github.com/bloxapp/ssv/protocol/v2/blockchain/beacon"
-	"github.com/bloxapp/ssv/protocol/v2/types"
 	"github.com/bloxapp/ssv/utils/logex"
 	"github.com/bloxapp/ssv/utils/threshold"
 )
@@ -27,8 +27,8 @@ const (
 func testKeyManager(t *testing.T) spectypes.KeyManager {
 	threshold.Init()
 
-	km, err := NewETHKeyManagerSigner(getStorage(t), nil, beacon2.NewNetwork(core.PraterNetwork, 0), types.GetDefaultDomain())
-	km.(*ethKeyManagerSigner).signingUtils = beacon2.NewBeaconMock()
+	km, err := NewETHKeyManagerSigner(getStorage(t), nil, beacon.NewNetwork(core.PraterNetwork, 0), types.GetDefaultDomain())
+	km.(*ethKeyManagerSigner).signingUtils = beacon.NewBeaconMock()
 	require.NoError(t, err)
 
 	sk1 := &bls.SecretKey{}

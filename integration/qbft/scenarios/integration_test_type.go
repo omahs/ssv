@@ -5,6 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	protocolbeacon "github.com/bloxapp/ssv/protocol/blockchain/beacon"
+	"github.com/bloxapp/ssv/protocol/p2p"
+	protocolstorage "github.com/bloxapp/ssv/protocol/qbft/storage"
+	validator2 "github.com/bloxapp/ssv/protocol/ssv/validator"
+	handlers2 "github.com/bloxapp/ssv/protocol/sync/handlers"
+	types2 "github.com/bloxapp/ssv/protocol/types"
 	"sort"
 	"time"
 
@@ -22,12 +28,6 @@ import (
 	"github.com/bloxapp/ssv/network/testing"
 	"github.com/bloxapp/ssv/operator/validator"
 	protocolforks "github.com/bloxapp/ssv/protocol/forks"
-	protocolbeacon "github.com/bloxapp/ssv/protocol/v2/blockchain/beacon"
-	protocolp2p "github.com/bloxapp/ssv/protocol/v2/p2p"
-	protocolstorage "github.com/bloxapp/ssv/protocol/v2/qbft/storage"
-	protocolvalidator "github.com/bloxapp/ssv/protocol/v2/ssv/validator"
-	"github.com/bloxapp/ssv/protocol/v2/sync/handlers"
-	"github.com/bloxapp/ssv/protocol/v2/types"
 	"github.com/bloxapp/ssv/storage"
 	"github.com/bloxapp/ssv/storage/basedb"
 	"github.com/bloxapp/ssv/utils/logex"
@@ -61,7 +61,7 @@ func (it *IntegrationTest) bootstrap(ctx context.Context) (*scenarioContext, err
 	logger := loggerFactory(fmt.Sprintf("Bootstrap/%s", it.Name))
 	logger.Info("creating resources")
 
-	types.SetDefaultDomain(spectypes.PrimusTestnet)
+	types2.SetDefaultDomain(spectypes.PrimusTestnet)
 
 	dbs := make(map[spectypes.OperatorID]basedb.IDb)
 	for _, operatorID := range it.OperatorIDs {
@@ -109,10 +109,10 @@ func (it *IntegrationTest) bootstrap(ctx context.Context) (*scenarioContext, err
 		kms[operatorID] = km
 		nodes[operatorID].RegisterHandlers(protocolp2p.WithHandler(
 			protocolp2p.LastDecidedProtocol,
-			handlers.LastDecidedHandler(loggerFactory(fmt.Sprintf("decided-handler-%d", operatorID)), storageMap, nodes[operatorID]),
+			handlers2.LastDecidedHandler(loggerFactory(fmt.Sprintf("decided-handler-%d", operatorID)), storageMap, nodes[operatorID]),
 		), protocolp2p.WithHandler(
 			protocolp2p.DecidedHistoryProtocol,
-			handlers.HistoryHandler(loggerFactory(fmt.Sprintf("history-handler-%d", operatorID)), storageMap, nodes[operatorID], 25),
+			handlers2.HistoryHandler(loggerFactory(fmt.Sprintf("history-handler-%d", operatorID)), storageMap, nodes[operatorID], 25),
 		))
 	}
 
@@ -227,8 +227,8 @@ func (it *IntegrationTest) Run() error {
 	return nil
 }
 
-func (it *IntegrationTest) createValidators(sCtx *scenarioContext) (map[spectypes.OperatorID]*protocolvalidator.Validator, error) {
-	validators := make(map[spectypes.OperatorID]*protocolvalidator.Validator)
+func (it *IntegrationTest) createValidators(sCtx *scenarioContext) (map[spectypes.OperatorID]*validator2.Validator, error) {
+	validators := make(map[spectypes.OperatorID]*validator2.Validator)
 	operators := make([][]byte, 0)
 	for _, k := range sCtx.nodeKeys {
 		pub, err := rsaencryption.ExtractPublicKey(k.OperatorKey)
@@ -244,12 +244,12 @@ func (it *IntegrationTest) createValidators(sCtx *scenarioContext) (map[spectype
 			return nil, err
 		}
 
-		options := protocolvalidator.Options{
+		options := validator2.Options{
 			Storage: sCtx.stores[operatorID],
 			Network: sCtx.nodes[operatorID],
-			SSVShare: &types.SSVShare{
+			SSVShare: &types2.SSVShare{
 				Share: *testingShare(spectestingutils.Testing4SharesSet(), operatorID),
-				Metadata: types.Metadata{
+				Metadata: types2.Metadata{
 					BeaconMetadata: &protocolbeacon.ValidatorMetadata{
 						Index: spec.ValidatorIndex(1),
 					},
@@ -265,7 +265,7 @@ func (it *IntegrationTest) createValidators(sCtx *scenarioContext) (map[spectype
 		l := sCtx.logger.With(zap.String("w", fmt.Sprintf("node-%d", operatorID)))
 
 		options.DutyRunners = validator.SetupRunners(sCtx.ctx, l, options)
-		val := protocolvalidator.NewValidator(sCtx.ctx, options)
+		val := validator2.NewValidator(sCtx.ctx, options)
 		validators[operatorID] = val
 	}
 
@@ -354,14 +354,14 @@ func matchedStates(actual specqbft.State, expected specqbft.State) bool {
 }
 
 type msgRouter struct {
-	validator *protocolvalidator.Validator
+	validator *validator2.Validator
 }
 
 func (m *msgRouter) Route(message spectypes.SSVMessage) {
 	m.validator.HandleMessage(&message)
 }
 
-func newMsgRouter(v *protocolvalidator.Validator) *msgRouter {
+func newMsgRouter(v *validator2.Validator) *msgRouter {
 	return &msgRouter{
 		validator: v,
 	}

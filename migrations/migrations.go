@@ -3,13 +3,13 @@ package migrations
 import (
 	"bytes"
 	"context"
+	"github.com/bloxapp/ssv/protocol/blockchain/eth1"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
 	operatorstorage "github.com/bloxapp/ssv/operator/storage"
 	validatorstorage "github.com/bloxapp/ssv/operator/validator"
-	"github.com/bloxapp/ssv/protocol/v2/blockchain/eth1"
 	"github.com/bloxapp/ssv/storage/basedb"
 )
 

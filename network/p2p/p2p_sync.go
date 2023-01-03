@@ -2,6 +2,8 @@ package p2pv1
 
 import (
 	"encoding/hex"
+	message2 "github.com/bloxapp/ssv/protocol/message"
+	p2pprotocol "github.com/bloxapp/ssv/protocol/p2p"
 	"math/rand"
 
 	specqbft "github.com/bloxapp/ssv-spec/qbft"
@@ -11,9 +13,6 @@ import (
 	libp2p_protocol "github.com/libp2p/go-libp2p-core/protocol"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-
-	"github.com/bloxapp/ssv/protocol/v2/message"
-	p2pprotocol "github.com/bloxapp/ssv/protocol/v2/p2p"
 )
 
 func (n *p2pNetwork) SyncHighestDecided(mid spectypes.MessageID) error {
@@ -61,11 +60,11 @@ func (n *p2pNetwork) LastDecided(mid spectypes.MessageID) ([]p2pprotocol.SyncRes
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get subset of peers")
 	}
-	return n.makeSyncRequest(peers, mid, pid, &message.SyncMessage{
-		Params: &message.SyncParams{
+	return n.makeSyncRequest(peers, mid, pid, &message2.SyncMessage{
+		Params: &message2.SyncParams{
 			Identifier: mid,
 		},
-		Protocol: message.LastDecidedType,
+		Protocol: message2.LastDecidedType,
 	})
 }
 
@@ -103,12 +102,12 @@ func (n *p2pNetwork) GetHistory(mid spectypes.MessageID, from, to specqbft.Heigh
 	if to-from > maxBatchRes {
 		currentEnd = from + maxBatchRes
 	}
-	results, err = n.makeSyncRequest(peers, mid, protocolID, &message.SyncMessage{
-		Params: &message.SyncParams{
+	results, err = n.makeSyncRequest(peers, mid, protocolID, &message2.SyncMessage{
+		Params: &message2.SyncParams{
 			Height:     []specqbft.Height{from, currentEnd},
 			Identifier: mid,
 		},
-		Protocol: message.DecidedHistoryType,
+		Protocol: message2.DecidedHistoryType,
 	})
 	if err != nil {
 		return results, 0, err
@@ -198,14 +197,14 @@ func (n *p2pNetwork) getSubsetOfPeers(vpk spectypes.ValidatorPK, peerCount int, 
 	return peers[:peerCount], nil
 }
 
-func (n *p2pNetwork) makeSyncRequest(peers []peer.ID, mid spectypes.MessageID, protocol libp2p_protocol.ID, syncMsg *message.SyncMessage) ([]p2pprotocol.SyncResult, error) {
+func (n *p2pNetwork) makeSyncRequest(peers []peer.ID, mid spectypes.MessageID, protocol libp2p_protocol.ID, syncMsg *message2.SyncMessage) ([]p2pprotocol.SyncResult, error) {
 	var results []p2pprotocol.SyncResult
 	data, err := syncMsg.Encode()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not encode sync message")
 	}
 	msg := &spectypes.SSVMessage{
-		MsgType: message.SSVSyncMsgType,
+		MsgType: message2.SSVSyncMsgType,
 		MsgID:   mid,
 		Data:    data,
 	}

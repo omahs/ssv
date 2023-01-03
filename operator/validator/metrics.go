@@ -1,13 +1,12 @@
 package validator
 
 import (
+	"github.com/bloxapp/ssv/protocol/blockchain/beacon"
 	"log"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"go.uber.org/zap"
-
-	"github.com/bloxapp/ssv/protocol/v2/blockchain/beacon"
 )
 
 var (

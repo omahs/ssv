@@ -2,6 +2,8 @@ package api
 
 import (
 	"fmt"
+	qbftstorageprotocol "github.com/bloxapp/ssv/protocol/qbft/storage"
+	protocoltesting "github.com/bloxapp/ssv/protocol/testing"
 	"testing"
 
 	specqbft "github.com/bloxapp/ssv-spec/qbft"
@@ -15,8 +17,6 @@ import (
 	qbftstorage "github.com/bloxapp/ssv/ibft/storage"
 	"github.com/bloxapp/ssv/operator/storage"
 	forksprotocol "github.com/bloxapp/ssv/protocol/forks"
-	qbftstorageprotocol "github.com/bloxapp/ssv/protocol/v2/qbft/storage"
-	protocoltesting "github.com/bloxapp/ssv/protocol/v2/testing"
 	ssvstorage "github.com/bloxapp/ssv/storage"
 	"github.com/bloxapp/ssv/storage/basedb"
 	"github.com/bloxapp/ssv/utils/logex"

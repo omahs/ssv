@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	protcolp2p "github.com/bloxapp/ssv/protocol/p2p"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -19,7 +20,6 @@ import (
 	"github.com/bloxapp/ssv/network"
 	forksfactory "github.com/bloxapp/ssv/network/forks/factory"
 	forksprotocol "github.com/bloxapp/ssv/protocol/forks"
-	protcolp2p "github.com/bloxapp/ssv/protocol/v2/p2p"
 )
 
 func TestGetMaxPeers(t *testing.T) {

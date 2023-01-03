@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/bloxapp/ssv/beacon/goclient"
+	beacon2 "github.com/bloxapp/ssv/protocol/blockchain/beacon"
 	"time"
 
 	eth2apiv1 "github.com/attestantio/go-eth2-client/api/v1"
@@ -13,8 +14,6 @@ import (
 	"github.com/pkg/errors"
 	types "github.com/prysmaticlabs/eth2-types"
 	"go.uber.org/zap"
-
-	"github.com/bloxapp/ssv/protocol/v2/blockchain/beacon"
 )
 
 //go:generate mockgen -package=mocks -destination=./mocks/fetcher.go -source=./fetcher.go
@@ -36,7 +35,7 @@ type DutyFetcher interface {
 }
 
 // newDutyFetcher creates a new instance
-func newDutyFetcher(logger *zap.Logger, beaconClient beacon.Beacon, indicesFetcher validatorsIndicesFetcher, network beacon.Network) DutyFetcher {
+func newDutyFetcher(logger *zap.Logger, beaconClient beacon2.Beacon, indicesFetcher validatorsIndicesFetcher, network beacon2.Network) DutyFetcher {
 	df := dutyFetcher{
 		logger:         logger.With(zap.String("component", "operator/dutyFetcher")),
 		ethNetwork:     network,
@@ -50,8 +49,8 @@ func newDutyFetcher(logger *zap.Logger, beaconClient beacon.Beacon, indicesFetch
 // dutyFetcher is internal implementation of DutyFetcher
 type dutyFetcher struct {
 	logger         *zap.Logger
-	ethNetwork     beacon.Network
-	beaconClient   beacon.Beacon
+	ethNetwork     beacon2.Network
+	beaconClient   beacon2.Beacon
 	indicesFetcher validatorsIndicesFetcher
 
 	cache *cache.Cache

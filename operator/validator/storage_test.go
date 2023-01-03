@@ -2,6 +2,8 @@ package validator
 
 import (
 	"encoding/hex"
+	beaconprotocol "github.com/bloxapp/ssv/protocol/blockchain/beacon"
+	types2 "github.com/bloxapp/ssv/protocol/types"
 	"testing"
 
 	spectypes "github.com/bloxapp/ssv-spec/types"
@@ -9,8 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 
-	beaconprotocol "github.com/bloxapp/ssv/protocol/v2/blockchain/beacon"
-	"github.com/bloxapp/ssv/protocol/v2/types"
 	"github.com/bloxapp/ssv/storage"
 	"github.com/bloxapp/ssv/storage/basedb"
 	"github.com/bloxapp/ssv/utils/threshold"
@@ -35,7 +35,7 @@ func TestValidatorSerializer(t *testing.T) {
 		Key:   validatorShare.ValidatorPubKey,
 		Value: b,
 	}
-	v1 := &types.SSVShare{}
+	v1 := &types2.SSVShare{}
 	require.NoError(t, v1.Decode(obj.Value))
 	require.NotNil(t, v1.ValidatorPubKey)
 	require.Equal(t, hex.EncodeToString(v1.ValidatorPubKey), hex.EncodeToString(validatorShare.ValidatorPubKey))
@@ -93,7 +93,7 @@ func TestSaveAndGetValidatorStorage(t *testing.T) {
 	require.False(t, found)
 }
 
-func generateRandomValidatorShare(splitKeys map[uint64]*bls.SecretKey) (*types.SSVShare, *bls.SecretKey) {
+func generateRandomValidatorShare(splitKeys map[uint64]*bls.SecretKey) (*types2.SSVShare, *bls.SecretKey) {
 	threshold.Init()
 
 	sk1 := bls.SecretKey{}
@@ -121,7 +121,7 @@ func generateRandomValidatorShare(splitKeys map[uint64]*bls.SecretKey) (*types.S
 		},
 	}
 
-	return &types.SSVShare{
+	return &types2.SSVShare{
 		Share: spectypes.Share{
 			OperatorID:      1,
 			ValidatorPubKey: sk1.GetPublicKey().Serialize(),
@@ -129,10 +129,10 @@ func generateRandomValidatorShare(splitKeys map[uint64]*bls.SecretKey) (*types.S
 			Committee:       ibftCommittee,
 			Quorum:          3,
 			PartialQuorum:   2,
-			DomainType:      types.GetDefaultDomain(),
+			DomainType:      types2.GetDefaultDomain(),
 			Graffiti:        nil,
 		},
-		Metadata: types.Metadata{
+		Metadata: types2.Metadata{
 			BeaconMetadata: &beaconprotocol.ValidatorMetadata{
 				Balance: 1,
 				Status:  2,

@@ -3,6 +3,7 @@ package goclient
 import (
 	"context"
 	"fmt"
+	"github.com/bloxapp/ssv/protocol/blockchain/beacon"
 	"log"
 	"sync"
 	"time"
@@ -19,7 +20,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv/monitoring/metrics"
-	beaconprotocol "github.com/bloxapp/ssv/protocol/v2/blockchain/beacon"
 )
 
 const (
@@ -47,9 +47,9 @@ func init() {
 // goClient implementing Beacon struct
 type goClient struct {
 	ctx            context.Context
-	logger         *zap.Logger
-	network        beaconprotocol.Network
-	client         client.Service
+	logger  *zap.Logger
+	network beacon.Network
+	client  client.Service
 	indicesMapLock sync.Mutex
 	graffiti       []byte
 }
@@ -58,7 +58,7 @@ type goClient struct {
 var _ metrics.HealthCheckAgent = &goClient{}
 
 // New init new client and go-client instance
-func New(opt beaconprotocol.Options) (beaconprotocol.Beacon, error) {
+func New(opt beacon.Options) (beacon.Beacon, error) {
 	logger := opt.Logger.With(zap.String("component", "goClient"), zap.String("network", opt.Network))
 	logger.Info("connecting to beacon client...")
 
@@ -76,7 +76,7 @@ func New(opt beaconprotocol.Options) (beaconprotocol.Beacon, error) {
 	logger = logger.With(zap.String("name", httpClient.Name()), zap.String("address", httpClient.Address()))
 	logger.Info("successfully connected to beacon client")
 
-	network := beaconprotocol.NewNetwork(core.NetworkFromString(opt.Network), opt.MinGenesisTime)
+	network := beacon.NewNetwork(core.NetworkFromString(opt.Network), opt.MinGenesisTime)
 	_client := &goClient{
 		ctx:            opt.Context,
 		logger:         logger,

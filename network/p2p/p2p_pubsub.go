@@ -3,6 +3,8 @@ package p2pv1
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/bloxapp/ssv/protocol/message"
+	p2pprotocol "github.com/bloxapp/ssv/protocol/p2p"
 
 	specqbft "github.com/bloxapp/ssv-spec/qbft"
 	spectypes "github.com/bloxapp/ssv-spec/types"
@@ -12,8 +14,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/bloxapp/ssv/network"
-	"github.com/bloxapp/ssv/protocol/v2/message"
-	p2pprotocol "github.com/bloxapp/ssv/protocol/v2/p2p"
 )
 
 const (

@@ -3,6 +3,7 @@ package ekm
 import (
 	"crypto/rsa"
 	"encoding/hex"
+	beacon2 "github.com/bloxapp/ssv/protocol/blockchain/beacon"
 	"sync"
 
 	"github.com/attestantio/go-eth2-client/spec/bellatrix"
@@ -22,8 +23,6 @@ import (
 	"github.com/prysmaticlabs/go-bitfield"
 	eth "github.com/prysmaticlabs/prysm/proto/prysm/v1alpha1"
 
-	"github.com/bloxapp/ssv/protocol/v2/blockchain/beacon"
-	beaconprotocol "github.com/bloxapp/ssv/protocol/v2/blockchain/beacon"
 	"github.com/bloxapp/ssv/storage/basedb"
 )
 
@@ -32,12 +31,12 @@ type ethKeyManagerSigner struct {
 	walletLock   *sync.RWMutex
 	signer       signer.ValidatorSigner
 	storage      *signerStorage
-	signingUtils beacon.Beacon
+	signingUtils beacon2.Beacon
 	domain       spectypes.DomainType
 }
 
 // NewETHKeyManagerSigner returns a new instance of ethKeyManagerSigner
-func NewETHKeyManagerSigner(db basedb.IDb, signingUtils beaconprotocol.Beacon, network beaconprotocol.Network, domain spectypes.DomainType) (spectypes.KeyManager, error) {
+func NewETHKeyManagerSigner(db basedb.IDb, signingUtils beacon2.Beacon, network beacon2.Network, domain spectypes.DomainType) (spectypes.KeyManager, error) {
 	signerStore := newSignerStorage(db, network)
 	options := &eth2keymanager.KeyVaultOptions{}
 	options.SetStorage(signerStore)
@@ -73,7 +72,7 @@ func NewETHKeyManagerSigner(db basedb.IDb, signingUtils beaconprotocol.Beacon, n
 	}, nil
 }
 
-func newBeaconSigner(wallet core.Wallet, store core.SlashingStore, network beaconprotocol.Network) (signer.ValidatorSigner, error) {
+func newBeaconSigner(wallet core.Wallet, store core.SlashingStore, network beacon2.Network) (signer.ValidatorSigner, error) {
 	slashingProtection := slashingprotection.NewNormalProtection(store)
 	return signer.NewSimpleSigner(wallet, slashingProtection, network.Network), nil
 }
