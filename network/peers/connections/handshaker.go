@@ -5,14 +5,11 @@ import (
 	"github.com/bloxapp/ssv/network/peers"
 	"github.com/bloxapp/ssv/network/records"
 	"github.com/bloxapp/ssv/network/streams"
-	forksprotocol "github.com/bloxapp/ssv/protocol/forks"
 	libp2pnetwork "github.com/libp2p/go-libp2p/core/network"
 	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/peerstore"
 	"github.com/libp2p/go-libp2p/p2p/protocol/identify"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"strings"
 	"time"
 )
 
@@ -173,16 +170,9 @@ func (h *handshaker) Handshake(conn libp2pnetwork.Conn) error {
 	if err != nil || ni != nil {
 		return err
 	}
-	//if err := h.preHandshake(conn); err != nil {
-	//	return errors.Wrap(err, "could not perform pre-handshake")
-	//}
 	ni, err = h.nodeInfoFromStream(conn)
 	if err != nil {
-		// fallbacks to user agent
-		ni, err = h.nodeInfoFromUserAgent(conn)
-		if err != nil {
-			return err
-		}
+		return err
 	}
 	if ni == nil {
 		return errors.New("empty node info")
@@ -253,45 +243,6 @@ func (h *handshaker) nodeInfoFromStream(conn libp2pnetwork.Conn) (*records.NodeI
 		return nil, err
 	}
 	return &ni, nil
-}
-
-func (h *handshaker) nodeInfoFromUserAgent(conn libp2pnetwork.Conn) (*records.NodeInfo, error) {
-	pid := conn.RemotePeer()
-	uaRaw, err := h.net.Peerstore().Get(pid, userAgentKey)
-	if err != nil {
-		if err == peerstore.ErrNotFound {
-			// if user agent wasn't found, retry libp2p identify after 100ms
-			time.Sleep(time.Millisecond * 100)
-			if err := h.preHandshake(conn); err != nil {
-				return nil, err
-			}
-			uaRaw, err = h.net.Peerstore().Get(pid, userAgentKey)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			return nil, err
-		}
-	}
-	ua, ok := uaRaw.(string)
-	if !ok {
-		return nil, errors.New("could not cast ua to string")
-	}
-	parts := strings.Split(ua, ":")
-	if len(parts) < 2 { // too old or unknown
-		h.logger.Debug("user agent is unknown", zap.String("ua", ua))
-		return nil, errUnknownUserAgent
-	}
-	// TODO: don't assume network is the same
-	ni := records.NewNodeInfo(forksprotocol.GenesisForkVersion, h.nodeInfoIdx.Self().NetworkID)
-	ni.Metadata = &records.NodeMetadata{
-		NodeVersion: parts[1],
-	}
-	// extract operator id if exist
-	if len(parts) > 3 {
-		ni.Metadata.OperatorID = parts[3]
-	}
-	return ni, nil
 }
 
 func (h *handshaker) applyFilters(nodeInfo *records.NodeInfo) bool {
