@@ -26,6 +26,9 @@ type AttesterRunner struct {
 	signer   spectypes.KeyManager
 	valCheck specqbft.ProposedValueCheckF
 	logger   *zap.Logger
+
+	//TODO delete
+	start time.Time
 }
 
 func NewAttesterRunnner(
@@ -46,7 +49,6 @@ func NewAttesterRunnner(
 			QBFTController: qbftController,
 			logger:         logger.With(zap.String("who", "BaseRunner")),
 		},
-
 		beacon:   beacon,
 		network:  network,
 		signer:   signer,
@@ -78,6 +80,13 @@ func (r *AttesterRunner) ProcessConsensus(signedMsg *specqbft.SignedMessage) err
 	// Decided returns true only once so if it is true it must be for the current running instance
 	if !decided {
 		return nil
+	}
+
+	// TODO delte
+	duration := time.Since(r.start).Seconds()
+	r.logger.Debug("NIV: got to consensus", zap.Float64("duration (sec)", duration), zap.Int64("epoch", int64(decidedValue.Duty.Slot/32)), zap.Int64("slot", int64(decidedValue.Duty.Slot)))
+	if duration > 0.5 {
+		r.logger.Debug("NIV: got to consensus more than 0.5s", zap.Float64("duration (sec)", duration), zap.Int64("epoch", int64(decidedValue.Duty.Slot/32)), zap.Int64("slot", int64(decidedValue.Duty.Slot)))
 	}
 
 	// specific duty sig
@@ -120,6 +129,13 @@ func (r *AttesterRunner) ProcessPostConsensus(signedMsg *specssv.SignedPartialSi
 
 	if !quorum {
 		return nil
+	}
+
+	// TODO delte
+	duration := time.Since(r.start).Seconds()
+	r.logger.Debug("NIV: got to post-consensus", zap.Float64("duration (sec)", duration), zap.Int64("epoch", int64(r.GetState().DecidedValue.Duty.Slot/32)), zap.Int64("slot", int64(r.GetState().DecidedValue.Duty.Slot)))
+	if duration > 0.5 {
+		r.logger.Debug("NIV: got to post-consensus more than 0.5s", zap.Float64("duration (sec)", duration), zap.Int64("epoch", int64(r.GetState().DecidedValue.Duty.Slot/32)), zap.Int64("slot", int64(r.GetState().DecidedValue.Duty.Slot)))
 	}
 
 	for _, root := range roots {
@@ -181,12 +197,13 @@ func (r *AttesterRunner) executeDuty(duty *spectypes.Duty) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get attestation data")
 	}
-	r.logger.Debug("NIV: fetched atts data", zap.Float64("duration (sec)", time.Since(start).Seconds()))
+	r.logger.Debug("NIV: fetched atts data", zap.Float64("duration (sec)", time.Since(start).Seconds()), zap.Int64("slot", int64(duty.Slot)))
 	input := &spectypes.ConsensusData{
 		Duty:            duty,
 		AttestationData: attData,
 	}
 
+	r.start = time.Now()
 	if err := r.BaseRunner.decide(r, input); err != nil {
 		return errors.Wrap(err, "can't start new duty runner instance for duty")
 	}
