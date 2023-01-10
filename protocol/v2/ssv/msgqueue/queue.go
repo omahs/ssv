@@ -115,7 +115,7 @@ func (q *queue) Add(msg *spectypes.SSVMessage) {
 		msg: msg,
 	}
 
-	if msg.MsgID.GetRoleType() == spectypes.BNRoleAttester {
+	if msg.MsgID.GetRoleType() == spectypes.BNRoleProposer || msg.MsgID.GetRoleType() == spectypes.BNRoleAttester {
 		var inxs []string
 		for _, idx := range indices {
 			inxs = append(inxs, idx.String())
