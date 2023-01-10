@@ -115,6 +115,14 @@ func (q *queue) Add(msg *spectypes.SSVMessage) {
 		msg: msg,
 	}
 
+	if msg.MsgID.GetRoleType() == spectypes.BNRoleAttester {
+		var inxs []string
+		for _, idx := range indices {
+			inxs = append(inxs, idx.String())
+		}
+		q.logger.Debug("NIV: add to queue", zap.Strings("indices", inxs))
+	}
+
 	for _, idx := range indices {
 		if idx == (Index{}) {
 			continue

@@ -9,6 +9,7 @@ import (
 	specssv "github.com/bloxapp/ssv-spec/ssv"
 	spectypes "github.com/bloxapp/ssv-spec/types"
 	"go.uber.org/zap"
+	"time"
 
 	ssz "github.com/ferranbt/fastssz"
 	"github.com/pkg/errors"
@@ -175,12 +176,12 @@ func (r *AttesterRunner) expectedPostConsensusRootsAndDomain() ([]ssz.HashRoot, 
 // 4) collect 2f+1 partial sigs, reconstruct and broadcast valid attestation sig to the BN
 func (r *AttesterRunner) executeDuty(duty *spectypes.Duty) error {
 	// TODO - waitOneThirdOrValidBlock
-
+	start := time.Now()
 	attData, err := r.GetBeaconNode().GetAttestationData(duty.Slot, duty.CommitteeIndex)
 	if err != nil {
 		return errors.Wrap(err, "failed to get attestation data")
 	}
-
+	r.logger.Debug("NIV: fetched atts data", zap.Float64("duration (sec)", time.Since(start).Seconds()))
 	input := &spectypes.ConsensusData{
 		Duty:            duty,
 		AttestationData: attData,
