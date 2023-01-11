@@ -33,7 +33,7 @@ func (v *Validator) StartQueueConsumer(msgID spectypes.MessageID, handler Messag
 	defer cancel()
 
 	for ctx.Err() == nil {
-		err := v.ConsumeQueue(msgID, handler, time.Millisecond*50)
+		err := v.ConsumeQueue(msgID, handler, time.Millisecond*25)
 		if err != nil {
 			v.logger.Debug("failed consuming queue", zap.Error(err))
 		}
@@ -55,8 +55,6 @@ func (v *Validator) ConsumeQueue(msgID spectypes.MessageID, handler MessageHandl
 	higherCache := cache.New(time.Second*12, time.Second*24)
 
 	for ctx.Err() == nil {
-		time.Sleep(interval)
-
 		// no msg's in the queue
 		if q.Len() == 0 {
 			// no msg's at all. need to prevent cpu usage in query
@@ -95,6 +93,8 @@ func (v *Validator) ConsumeQueue(msgID spectypes.MessageID, handler MessageHandl
 			// remove all msg's that are 2 heights old, besides height 0
 			return int64(index.H) <= int64(lastHeight-2) // remove all msg's that are 2 heights old. not post consensus & decided
 		})
+
+		time.Sleep(interval)
 	}
 
 	logger.Warn("queue consumer is closed")

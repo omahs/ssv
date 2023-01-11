@@ -149,6 +149,7 @@ func (dc *dutyController) listenToTicker(slots <-chan prysmtypes.Slot) {
 		if err != nil {
 			dc.logger.Warn("failed to get duties", zap.Error(err))
 		}
+		dc.logger.Debug("NIV: duties for slot", zap.Int("count", len(duties)))
 		for i := range duties {
 			go dc.onDuty(&duties[i])
 		}
