@@ -119,6 +119,9 @@ func (c *Controller) UponExistingInstanceMsg(msg *specqbft.SignedMessage) (*spec
 
 // BaseMsgValidation returns error if msg is invalid (base validation)
 func (c *Controller) baseMsgValidation(msg *specqbft.SignedMessage) error {
+	if msg == nil || msg.Message == nil {
+		return errors.New("empty message")
+	}
 	// verify msg belongs to controller
 	if !bytes.Equal(c.Identifier, msg.Message.Identifier) {
 		return errors.New("message doesn't belong to Identifier")
