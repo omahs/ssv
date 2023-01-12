@@ -64,7 +64,7 @@ func (v *Validator) ConsumeQueue(msgID spectypes.MessageID, handler MessageHandl
 		if q.Len() == 0 {
 			// no msg's at all. need to prevent cpu usage in query
 			//time.Sleep(interval)
-			C.usleep(interval)
+			C.usleep(250)
 			continue
 		}
 		//// avoid process messages on fork
@@ -101,7 +101,7 @@ func (v *Validator) ConsumeQueue(msgID spectypes.MessageID, handler MessageHandl
 		})
 
 		//time.Sleep(interval)
-		C.usleep(interval)
+		C.usleep(250)
 	}
 
 	logger.Warn("queue consumer is closed")
@@ -256,13 +256,13 @@ func (v *Validator) getNextMsgForState(q msgqueue.MsgQueue, identifier string, h
 		Add(func() msgqueue.Index {
 			return msgqueue.DecidedMsgIndex(identifier)
 		}) /*.
-	Add(func() msgqueue.Index {
-		indices := msgqueue.SignedMsgIndex(spectypes.SSVConsensusMsgType, identifier, height, specqbft.RoundChangeMsgType)
-		if len(indices) == 0 {
-			return msgqueue.Index{}
-		}
-		return indices[0]
-	})*/
+		Add(func() msgqueue.Index {
+			indices := msgqueue.SignedMsgIndex(spectypes.SSVConsensusMsgType, identifier, height, specqbft.RoundChangeMsgType)
+			if len(indices) == 0 {
+				return msgqueue.Index{}
+			}
+			return indices[0]
+		})*/
 
 	msgs := q.PopIndices(1, iterator)
 	if len(msgs) == 0 {
