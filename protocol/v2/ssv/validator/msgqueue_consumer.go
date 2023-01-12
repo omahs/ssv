@@ -1,5 +1,10 @@
 package validator
 
+// #include <unistd.h>
+// //#include <errno.h>
+// //int usleep(useconds_t usec);
+import "C"
+
 import (
 	"context"
 	"fmt"
@@ -58,7 +63,8 @@ func (v *Validator) ConsumeQueue(msgID spectypes.MessageID, handler MessageHandl
 		// no msg's in the queue
 		if q.Len() == 0 {
 			// no msg's at all. need to prevent cpu usage in query
-			time.Sleep(interval)
+			//time.Sleep(interval)
+			C.usleep(interval)
 			continue
 		}
 		//// avoid process messages on fork
@@ -94,7 +100,8 @@ func (v *Validator) ConsumeQueue(msgID spectypes.MessageID, handler MessageHandl
 			return int64(index.H) <= int64(lastHeight-2) // remove all msg's that are 2 heights old. not post consensus & decided
 		})
 
-		time.Sleep(interval)
+		//time.Sleep(interval)
+		C.usleep(interval)
 	}
 
 	logger.Warn("queue consumer is closed")
@@ -249,13 +256,13 @@ func (v *Validator) getNextMsgForState(q msgqueue.MsgQueue, identifier string, h
 		Add(func() msgqueue.Index {
 			return msgqueue.DecidedMsgIndex(identifier)
 		}) /*.
-		Add(func() msgqueue.Index {
-			indices := msgqueue.SignedMsgIndex(spectypes.SSVConsensusMsgType, identifier, height, specqbft.RoundChangeMsgType)
-			if len(indices) == 0 {
-				return msgqueue.Index{}
-			}
-			return indices[0]
-		})*/
+	Add(func() msgqueue.Index {
+		indices := msgqueue.SignedMsgIndex(spectypes.SSVConsensusMsgType, identifier, height, specqbft.RoundChangeMsgType)
+		if len(indices) == 0 {
+			return msgqueue.Index{}
+		}
+		return indices[0]
+	})*/
 
 	msgs := q.PopIndices(1, iterator)
 	if len(msgs) == 0 {

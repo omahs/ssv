@@ -2,6 +2,7 @@ package roundtimer
 
 import (
 	"context"
+	"math"
 	"sync/atomic"
 	"time"
 
@@ -21,10 +22,13 @@ var (
 // if the round is smaller than 8 -> 2s; otherwise -> 2m
 // see SIP https://github.com/bloxapp/SIPs/pull/22
 func RoundTimeout(r specqbft.Round) time.Duration {
-	if r <= quickTimeoutThreshold {
-		return quickTimeout
-	}
-	return slowTimeout
+	roundTimeout := math.Pow(float64(3), float64(r))
+	return time.Duration(float64(time.Second) * roundTimeout)
+
+	//if r <= quickTimeoutThreshold {
+	//	return quickTimeout
+	//}
+	//return slowTimeout
 }
 
 // RoundTimer helps to manage current instance rounds.
