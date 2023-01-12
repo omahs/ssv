@@ -97,7 +97,7 @@ func (v *Validator) ConsumeQueue(msgID spectypes.MessageID, handler MessageHandl
 				return false
 			}
 			// remove all msg's that are 2 heights old, besides height 0
-			return int64(index.H) <= int64(lastHeight-2) // remove all msg's that are 2 heights old. not post consensus & decided
+			return index.H != 0 && int64(index.H) <= int64(lastHeight-2) // remove all msg's that are 2 heights old. not post consensus & decided
 		})
 
 		//time.Sleep(interval)

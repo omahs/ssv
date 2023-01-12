@@ -134,6 +134,7 @@ func (q *queue) Add(msg *spectypes.SSVMessage) {
 		msgs = ByConsensusMsgType().Combine(ByRound()).Add(msgs, mc)
 		q.items[idx] = msgs
 		metricsMsgQRatio.WithLabelValues(idx.ID, idx.Name, message.MsgTypeToString(idx.Mt), strconv.Itoa(int(idx.Cmt))).Inc()
+		q.logger.Debug("NIV: queue size", zap.Int("size", q.Len()))
 	}
 }
 
