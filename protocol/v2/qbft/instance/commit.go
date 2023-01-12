@@ -14,6 +14,10 @@ import (
 // UponCommit returns true if a quorum of commit messages was received.
 // Assumes commit message is valid!
 func (i *Instance) UponCommit(signedCommit *specqbft.SignedMessage, commitMsgContainer *specqbft.MsgContainer) (bool, []byte, *specqbft.SignedMessage, error) {
+	i.logger.Debug("got commit message",
+		zap.Uint64("round", uint64(signedCommit.Message.Round)),
+		zap.Any("signers", signedCommit.Signers))
+
 	addMsg, err := commitMsgContainer.AddFirstMsgForSignerAndRound(signedCommit)
 	if err != nil {
 		return false, nil, nil, errors.Wrap(err, "could not add commit msg to container")

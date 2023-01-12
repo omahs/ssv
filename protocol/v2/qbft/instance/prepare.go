@@ -17,6 +17,11 @@ func (i *Instance) uponPrepare(
 	signedPrepare *specqbft.SignedMessage,
 	prepareMsgContainer,
 	commitMsgContainer *specqbft.MsgContainer) error {
+
+	i.logger.Debug("got prepare message",
+		zap.Uint64("round", uint64(signedPrepare.Message.Round)),
+		zap.Any("signers", signedPrepare.Signers))
+
 	acceptedProposalData, err := i.State.ProposalAcceptedForCurrentRound.Message.GetProposalData()
 	if err != nil {
 		return errors.Wrap(err, "could not get accepted proposal data")
