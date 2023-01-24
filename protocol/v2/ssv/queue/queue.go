@@ -33,30 +33,33 @@ type Queue interface {
 // PriorityQueue implements Queue, it manages a lock-free linked list of DecodedSSVMessage.
 // Implemented using atomic CAS (CompareAndSwap) operations to handle multiple goroutines that add/pop messages.
 type PriorityQueue struct {
-	head unsafe.Pointer
+	head   unsafe.Pointer
+	bucket unsafe.Pointer
 }
 
 // New initialized a PriorityQueue with the given MessagePrioritizer.
 // If prioritizer is nil, the messages will be returned in the order they were pushed.
 func New() Queue {
 	// nolint
-	h := unsafe.Pointer(&msgItem{})
+	h, b := unsafe.Pointer(&msgItem{}), unsafe.Pointer(&msgItem{})
 	return &PriorityQueue{
-		head: h,
+		head:   h,
+		bucket: b,
 	}
 }
 
 func (q *PriorityQueue) Push(msg *DecodedSSVMessage) {
 	// nolint
-	n := &msgItem{value: unsafe.Pointer(msg), next: q.head}
+	n := &msgItem{value: unsafe.Pointer(msg), next: q.bucket}
 	// nolint
-	added := cas(&q.head, q.head, unsafe.Pointer(n))
+	added := cas(&q.bucket, q.bucket, unsafe.Pointer(n))
 	if added {
 		metricMsgQRatio.WithLabelValues(msg.MsgID.String()).Inc()
 	}
 }
 
 func (q *PriorityQueue) Pop(prioritizer MessagePrioritizer) *DecodedSSVMessage {
+	q.flushBucket()
 	res := q.pop(prioritizer)
 	if res != nil {
 		metricMsgQRatio.WithLabelValues(res.MsgID.String()).Dec()
@@ -66,10 +69,40 @@ func (q *PriorityQueue) Pop(prioritizer MessagePrioritizer) *DecodedSSVMessage {
 
 func (q *PriorityQueue) IsEmpty() bool {
 	h := load(&q.head)
-	if h == nil {
-		return true
+	if h != nil && h.Value() != nil {
+		return false
 	}
-	return h.Value() == nil
+	b := load(&q.bucket)
+	if b != nil && b.Value() != nil {
+		return false
+	}
+	return true
+}
+
+// flushBucket moves the bucket list into head
+func (q *PriorityQueue) flushBucket() {
+	b := q.bucket
+	current := load(&b)
+	// nolint
+	changed := cas(&q.bucket, b, unsafe.Pointer(&msgItem{}))
+	// if swap failed we try to flush again (might be caused due to multiple goroutines trying to add messages)
+	if !changed {
+		q.flushBucket()
+	}
+
+	for current != nil {
+		next := current.Next()
+		if next == nil { // bucket is empty
+			return
+		}
+		if next.Value() == nil { // reached end of bucket
+			current.next = q.head
+			// nolint
+			_ = cas(&q.head, q.head, unsafe.Pointer(current))
+			return
+		}
+		current = next
+	}
 }
 
 func (q *PriorityQueue) pop(prioritizer MessagePrioritizer) *DecodedSSVMessage {
