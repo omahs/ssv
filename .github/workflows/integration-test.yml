@@ -9,6 +9,7 @@ on:
     branches:
       - "main"
       - "stage"
+      - "monitoring-upgrade-fix-data-races"
 
   workflow_dispatch:
 
