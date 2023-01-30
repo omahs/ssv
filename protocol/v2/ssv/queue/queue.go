@@ -3,7 +3,6 @@ package queue
 import (
 	"github.com/bloxapp/ssv-spec/types"
 	"sync/atomic"
-	"unsafe"
 )
 
 // Filter is a function that returns true if the given message should be included.
@@ -33,24 +32,23 @@ type Queue interface {
 // PriorityQueue implements Queue, it manages a lock-free linked list of DecodedSSVMessage.
 // Implemented using atomic CAS (CompareAndSwap) operations to handle multiple goroutines that add/pop messages.
 type PriorityQueue struct {
-	head unsafe.Pointer
+	head atomic.Pointer[msgItem]
 }
 
 // New initialized a PriorityQueue with the given MessagePrioritizer.
 // If prioritizer is nil, the messages will be returned in the order they were pushed.
 func New() Queue {
-	// nolint
-	h := unsafe.Pointer(&msgItem{})
-	return &PriorityQueue{
-		head: h,
-	}
+	pq := &PriorityQueue{}
+	pq.head.Store(&msgItem{})
+	return pq
 }
 
 func (q *PriorityQueue) Push(msg *DecodedSSVMessage) {
-	// nolint
-	n := &msgItem{value: unsafe.Pointer(msg), next: q.head}
-	// nolint
-	added := cas(&q.head, q.head, unsafe.Pointer(n))
+	n := &msgItem{}
+	n.value.Store(msg)
+	n.next.Store(q.head.Load())
+
+	added := q.head.CompareAndSwap(q.head.Load(), n)
 	if added {
 		metricMsgQRatio.WithLabelValues(msg.MsgID.String()).Inc()
 	}
@@ -65,7 +63,7 @@ func (q *PriorityQueue) Pop(prioritizer MessagePrioritizer) *DecodedSSVMessage {
 }
 
 func (q *PriorityQueue) IsEmpty() bool {
-	h := load(&q.head)
+	h := q.head.Load()
 	if h == nil {
 		return true
 	}
@@ -74,10 +72,10 @@ func (q *PriorityQueue) IsEmpty() bool {
 
 func (q *PriorityQueue) pop(prioritizer MessagePrioritizer) *DecodedSSVMessage {
 	var h, beforeHighest, previous *msgItem
-	currentP := q.head
+	currentP := q.head.Load()
 
 	for currentP != nil {
-		current := load(&currentP)
+		current := currentP
 		val := current.Value()
 		if val != nil {
 			if h == nil || prioritizer.Prior(val, h.Value()) {
@@ -88,7 +86,7 @@ func (q *PriorityQueue) pop(prioritizer MessagePrioritizer) *DecodedSSVMessage {
 			}
 		}
 		previous = current
-		currentP = current.NextP()
+		currentP = current.next.Load()
 	}
 
 	if h == nil {
@@ -96,39 +94,21 @@ func (q *PriorityQueue) pop(prioritizer MessagePrioritizer) *DecodedSSVMessage {
 	}
 
 	if beforeHighest != nil {
-		cas(&beforeHighest.next, beforeHighest.NextP(), h.NextP())
+		beforeHighest.next.CompareAndSwap(beforeHighest.next.Load(), h.next.Load())
 	} else {
-		atomic.StorePointer(&q.head, h.NextP())
+		q.head.Store(h.next.Load())
 	}
 
-	return h.Value()
-}
-
-func load(p *unsafe.Pointer) *msgItem {
-	return (*msgItem)(atomic.LoadPointer(p))
-}
-
-func cas(p *unsafe.Pointer, old, new unsafe.Pointer) bool {
-	return atomic.CompareAndSwapPointer(p, old, new)
+	return h.value.Load()
 }
 
 // msgItem is an item in the linked list that is used by PriorityQueue
 type msgItem struct {
-	value unsafe.Pointer //*DecodedSSVMessage
-	next  unsafe.Pointer
+	value atomic.Pointer[DecodedSSVMessage]
+	next  atomic.Pointer[msgItem]
 }
 
 // Value returns the underlaying value
 func (i *msgItem) Value() *DecodedSSVMessage {
-	return (*DecodedSSVMessage)(atomic.LoadPointer(&i.value))
-}
-
-// Next returns the next item in the list
-func (i *msgItem) Next() *msgItem {
-	return (*msgItem)(atomic.LoadPointer(&i.next))
-}
-
-// NextP returns the next item's pointer
-func (i *msgItem) NextP() unsafe.Pointer {
-	return atomic.LoadPointer(&i.next)
+	return i.value.Load()
 }
