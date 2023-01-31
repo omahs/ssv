@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math/rand"
@@ -48,16 +49,16 @@ func TestPriorityQueuePushAndPop(t *testing.T) {
 func TestPriorityQueueParallelism(t *testing.T) {
 	// TODO: this test fails because of a race condition in the queue.
 	// Re-enable this test after it's fixed!
-	t.SkipNow()
+	// t.SkipNow()
 
 	totalStart := time.Now()
 	n := 10
 	for i := 0; i < n; i++ {
 		start := time.Now()
 		const (
-			pushers      = 10
+			pushers      = 16
 			poppers      = 1
-			messageCount = 1000
+			messageCount = 2080
 		)
 		queue := New()
 
@@ -71,9 +72,11 @@ func TestPriorityQueueParallelism(t *testing.T) {
 		}()
 
 		// Spawn pushers.
-		var pushersWg sync.WaitGroup
-		allMsgs := make([]*DecodedSSVMessage, 0, messageCount)
-		var pushed atomic.Int64
+		var (
+			pushersWg      sync.WaitGroup
+			pushedMessages = make([]*DecodedSSVMessage, 0, messageCount)
+			pushedCount    atomic.Int64
+		)
 		for i := 0; i < pushers; i++ {
 			msgs := make([]*DecodedSSVMessage, messageCount/pushers)
 			for i := 0; i < len(msgs); i++ {
@@ -81,17 +84,17 @@ func TestPriorityQueueParallelism(t *testing.T) {
 				msgs[i], err = DecodeSSVMessage(mockConsensusMessage{Height: qbft.Height(rand.Intn(messageCount)), Type: qbft.PrepareMsgType}.ssvMessage(mockState))
 				require.NoError(t, err)
 			}
-			allMsgs = append(allMsgs, msgs...)
+			pushedMessages = append(pushedMessages, msgs...)
 
 			pushersWg.Add(1)
 			go func() {
 				defer pushersWg.Done()
 				for _, m := range msgs {
 					queue.Push(m)
-					n := pushed.Add(1)
+					n := pushedCount.Add(1)
 					_ = n
 					// print <- []any{"pushed message %d/%d", n, messageCount}
-					time.Sleep(time.Duration(rand.Intn(10)) * time.Microsecond)
+					time.Sleep(time.Duration(rand.Intn(5)) * time.Microsecond)
 				}
 			}()
 		}
@@ -102,45 +105,39 @@ func TestPriorityQueueParallelism(t *testing.T) {
 		go func() {
 			pushersWg.Wait()
 			defer pushersAssertionWg.Done()
-			require.Equal(t, pushed.Load(), int64(messageCount))
+			require.Equal(t, pushedCount.Load(), int64(messageCount))
 		}()
 
 		// Pop all messages.
 		var poppersWg sync.WaitGroup
 		popped := make(chan *DecodedSSVMessage, messageCount*2)
-		var stopPopping atomic.Bool
+		poppingCtx, stopPopping := context.WithCancel(context.Background())
 		for i := 0; i < poppers; i++ {
 			poppersWg.Add(1)
 			go func() {
 				defer poppersWg.Done()
 				for {
-					if queue.IsEmpty() {
-						if stopPopping.Load() {
-							return
-						}
-						time.Sleep(5 * time.Microsecond)
-						continue
-					}
-					msg := queue.Pop(NewMessagePrioritizer(mockState))
-					if msg != nil {
-						popped <- msg
-					} else {
-						if stopPopping.Load() {
+					msg, wait := queue.WaitAndPop(NewMessagePrioritizer(mockState))
+					if wait != nil {
+						select {
+						case msg = <-wait:
+						case <-poppingCtx.Done():
 							return
 						}
 					}
-					// print <- []any{"popped message %d/%d", len(popped), messageCount}
-					if time.Since(start).Seconds() > 10 {
-						t.Logf("timeout")
+					if msg == nil {
+						t.Logf("nil message")
 						t.Fail()
 					}
+					popped <- msg
+					// print <- []any{"popped message %d/%d", len(popped), messageCount}
 				}
 			}()
 		}
 
 		// Wait for pushed messages assertion.
 		pushersAssertionWg.Wait()
-		stopPopping.Store(true)
+		stopPopping()
 
 		// Wait for poppers.
 		go func() {
@@ -154,7 +151,7 @@ func TestPriorityQueueParallelism(t *testing.T) {
 		log.Printf("popped %d messages in %s", len(allPopped), time.Since(start))
 
 		// Assert that all messages were popped.
-		for _, msg := range allMsgs {
+		for _, msg := range pushedMessages {
 			if _, ok := allPopped[msg]; !ok {
 				t.Log("message not popped")
 				t.Fail()
@@ -178,12 +175,18 @@ func TestPriorityQueueWaitAndPop(t *testing.T) {
 		queue.Push(msg)
 
 		// WaitAndPop immediately.
-		popped := queue.WaitAndPop(NewMessagePrioritizer(mockState))
+		popped, wait := queue.WaitAndPop(NewMessagePrioritizer(mockState))
+		if wait != nil {
+			popped = <-wait
+		}
 		require.NotNil(t, popped)
 		require.Equal(t, msg, popped)
 
 		// WaitAndPop immediately.
-		popped = queue.WaitAndPop(NewMessagePrioritizer(mockState))
+		popped, wait = queue.WaitAndPop(NewMessagePrioritizer(mockState))
+		if wait != nil {
+			popped = <-wait
+		}
 		require.NotNil(t, popped)
 		require.Equal(t, msg, popped)
 
@@ -197,12 +200,18 @@ func TestPriorityQueueWaitAndPop(t *testing.T) {
 		}()
 
 		// WaitAndPop should wait for the message to be pushed.
-		popped = queue.WaitAndPop(NewMessagePrioritizer(mockState))
+		popped, wait = queue.WaitAndPop(NewMessagePrioritizer(mockState))
+		if wait != nil {
+			popped = <-wait
+		}
 		require.NotNil(t, popped)
 		require.Equal(t, msg, popped)
 
 		// WaitAndPop should wait for the message to be pushed.
-		popped = queue.WaitAndPop(NewMessagePrioritizer(mockState))
+		popped, wait = queue.WaitAndPop(NewMessagePrioritizer(mockState))
+		if wait != nil {
+			popped = <-wait
+		}
 		require.NotNil(t, popped)
 		require.Equal(t, msg, popped)
 	}
@@ -240,7 +249,7 @@ func BenchmarkPriorityQueueConcurrent(b *testing.B) {
 	prioritizer := NewMessagePrioritizer(mockState)
 	queue := New()
 
-	messageCount := 500
+	messageCount := 10_000
 	types := []qbft.MessageType{qbft.PrepareMsgType, qbft.CommitMsgType, qbft.RoundChangeMsgType}
 	msgs := make(chan *DecodedSSVMessage, messageCount*len(types))
 	for _, i := range rand.Perm(messageCount) {
@@ -255,25 +264,51 @@ func BenchmarkPriorityQueueConcurrent(b *testing.B) {
 	b.ResetTimer()
 	b.StartTimer()
 
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			select {
-			case msg := <-msgs:
-				queue.Push(msg)
-			default:
+	var pushersWg sync.WaitGroup
+	var pushed atomic.Int32
+	for i := 0; i < 16; i++ {
+		pushersWg.Add(1)
+		go func() {
+			defer pushersWg.Done()
+			for n := b.N; n > 0; n-- {
+				select {
+				case msg := <-msgs:
+					queue.Push(msg)
+					pushed.Add(1)
+				default:
+				}
 			}
-		}
-	})
-
-	popped := 0
-	for n := b.N; n > 0; n-- {
-		msg := queue.Pop(prioritizer)
-		if msg != nil {
-			popped++
-		}
+		}()
 	}
 
+	pushersDone := make(chan struct{}, 1)
+	go func() {
+		pushersWg.Wait()
+		pushersDone <- struct{}{}
+	}()
+
+	var popperWg sync.WaitGroup
+	popperWg.Add(1)
+	popped := 0
+	go func() {
+		defer popperWg.Done()
+		for n := b.N; n > 0; n-- {
+			msg, wait := queue.WaitAndPop(prioritizer)
+			if msg == nil {
+				select {
+				case <-wait:
+				case <-pushersDone:
+					return
+				}
+			}
+			popped++
+		}
+	}()
+
+	popperWg.Wait()
+
 	b.Logf("popped %d messages", popped)
+	b.Logf("pushed %d messages", pushed.Load())
 }
 
 func decodeAndPush(t require.TestingT, queue Queue, msg mockMessage, state *State) *DecodedSSVMessage {
